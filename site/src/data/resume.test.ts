@@ -15,7 +15,10 @@ import type { SkillGroup } from './types.ts'
  * Guard rails, not a transcript check: these catch a section being emptied or
  * an entry being dropped by accident. The exact counts are the ones in
  * `resume.md` — if the source resume gains or loses an entry, update both the
- * data and the count here in the same change. Wording lives in resume.md.
+ * data and the count here in the same change. Wording lives in resume.md, and
+ * `test/resume-md-sync.test.ts` is the suite that checks it: every string
+ * transcribed here has to appear verbatim in that file. So this suite stays
+ * counts and non-emptiness; the transcript check is over there.
  */
 
 /** Every skill group on the page, whichever section it renders in. */
