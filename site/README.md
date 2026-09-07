@@ -18,11 +18,17 @@ Run from `site/`:
 ## Continuous integration
 
 `.github/workflows/ci.yml` is the pull-request gate. It runs on every pull
-request that touches `site/**` (or the workflow file itself) and runs `npm ci`
-in `site/`, then `npm run lint -- --deny-warnings`, `npm run typecheck` and
-`npm run build` as three separate steps — so any one of a lint problem, a type
-error or a build failure fails the check on its own, and the annotation points
-at the step that actually broke.
+request that touches `site/**`, `resume.pdf` or the workflow file itself, and
+runs `npm ci` in `site/`, then `npm run lint -- --deny-warnings`,
+`npm run typecheck` and `npm run build` as separate steps — so any one of a
+lint problem, a type error or a build failure fails the check on its own, and
+the annotation points at the step that actually broke. A fourth step,
+`cmp dist/resume.pdf ../resume.pdf`, checks that the build really emitted the
+repo-root PDF: the plugin that emits it is only unit-tested against stand-in
+Vite objects, and a wrong or missing asset is a 404 behind the download
+button. That step is why `resume.pdf` is one of the triggering paths — a pull
+request that only regenerates the resume would otherwise skip the one check
+that guards it.
 
 **CI lints stricter than the bare script does.** Oxlint reports its default
 (correctness) rules — `no-debugger`, `no-unused-vars` and the rest — at
@@ -378,6 +384,26 @@ devtools responsive mode:
 - [ ] **Hero CTAs at 375px** — the three buttons are full-width and stacked,
       each at least 44px tall (inspect one: its box height in devtools is
       ≥ 44), with visible space between them.
+- [ ] **Download PDF at 375px, then again on the live site** — there is no
+      browser in the CI runner, so this one stays a person's check like the
+      rest of the list; the classes behind it (`min-h-11`, `w-full`,
+      `sm:w-auto`, the group's `gap-3`) are pinned by
+      `src/components/HeroSection.test.tsx`, but whether the file actually
+      arrives is a person's check.
+      - The button is full width at phone width, at least 44px tall (inspect
+        it: its box height in devtools is ≥ 44) and at least 8px clear of the
+        GitHub button below it.
+      - Tap it on a **real mobile browser** (not just devtools' responsive
+        mode): mobile browsers differ, so either the file downloading or it
+        opening in a new tab is correct — what must not happen is a 404, a
+        blank tab or any other error.
+      - Repeat the tap **against the live URL**
+        (https://brettbergin.github.io/resume/), not only against
+        `npm run dev`. The two serve the PDF by different routes: the dev
+        server streams the repo-root file through the plugin's middleware,
+        while Pages serves the copy the build emitted into `dist/`. A green
+        check on `npm run dev` therefore says nothing about the deployed
+        button — see [The resume PDF](#the-resume-pdf).
 - [ ] **Hero at 768px and at 1440px** — the CTAs have moved into a row and sit
       inside the `max-w-5xl` column with nothing clipped, overlapping or
       pushed past the column's right edge.
@@ -432,10 +458,10 @@ devtools responsive mode:
       resume has none, so any such figure would be invented. Chips are plain
       labels, and each has visible padding and spacing rather than running
       together into one block of text.
-- [ ] **Hero links work**: "Download PDF" downloads the file under
-      `npm run dev` (the dev server serves the repo-root PDF — see
-      [The resume PDF](#the-resume-pdf)), and the GitHub button opens the
-      profile in a new tab.
+- [ ] **Hero links work**: the GitHub button opens the profile in a new tab
+      and the Email button opens a mail composer. "Download PDF" has its own
+      item above — it needs checking on the live site too, not only under
+      `npm run dev`.
 - [ ] **Mobile menu, keyboard only** at 375px: Tab to the menu button, open it
       with Enter, Tab through the links and confirm focus stays inside the
       panel and cycles, press Escape and confirm the panel closes and focus

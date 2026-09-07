@@ -100,7 +100,7 @@ describe('HeroSection', () => {
     ])
   })
 
-  it('gives every CTA a 44px tap target and the shared focus ring', () => {
+  it('gives every CTA a 44px, full-width-on-a-phone tap target and the shared focus ring', () => {
     render(<HeroSection headingId={HEADING_ID} />)
 
     for (const cta of ctas()) {
@@ -108,19 +108,19 @@ describe('HeroSection', () => {
 
       // Tailwind's 11 = 2.75rem = 44px, the minimum comfortable touch size.
       expect(classes).toContain('min-h-11')
+      // The other half of the phone tap target: 44px tall *and* the full
+      // column wide below `sm`, content width once the buttons sit in a row.
+      // Both come from the shared `CTA` class string, so this is what stops a
+      // restyle there from quietly shrinking the Download PDF target — the
+      // README's manual checklist walks the rendered result.
+      expect(classes).toContain('w-full')
+      expect(classes).toContain('sm:w-auto')
       expect(classes).toContain('focus-visible:outline-accent')
     }
   })
 
-  it('stacks the CTAs full width on a phone and puts them in a row from sm up', () => {
+  it('stacks the CTAs on a phone and puts them in a row from sm up', () => {
     render(<HeroSection headingId={HEADING_ID} />)
-
-    for (const cta of ctas()) {
-      const classes = cta.className.split(/\s+/)
-
-      expect(classes).toContain('w-full')
-      expect(classes).toContain('sm:w-auto')
-    }
 
     const group = ctas()[0].parentElement
     const classes = (group?.className ?? '').split(/\s+/)

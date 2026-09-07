@@ -8,6 +8,10 @@ on:
   pull_request:
     paths:
       - site/**
+      # The build emits the repo-root PDF into dist/, so a pull request that
+      # only regenerates the resume still has to run the check that compares
+      # the two.
+      - resume.pdf
       # Changes to the workflow itself exercise CI too, so a broken edit here
       # surfaces on the pull request that makes it.
       - .github/workflows/ci.yml
@@ -58,3 +62,10 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # The plugin that emits the PDF is only unit-tested, against stand-in
+      # Vite objects — so this is the one place the *real* build output is
+      # checked. A wrong or missing asset is a 404 behind the download button,
+      # which nothing else in this job would notice.
+      - name: Compare emitted PDF with the repo-root one
+        run: cmp dist/resume.pdf ../resume.pdf
