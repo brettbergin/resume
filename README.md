@@ -127,10 +127,25 @@ San Francisco, CA | mr.lance.harris@gmail.com
 **Steve Pace** | Senior Vice President, Global Sales | Core Security Technologies  
 Boston, MA | (626) 200-5124 | space@coresecurity.com 
 
-## Frontend
+## Repo layout
 
-The web frontend for this resume is a Vite + React + TypeScript app in [`site/`](site/).
-The plain-text and PDF resume at the repo root (`resume.md`, `resume.html`, `resume.pdf`) remains the source of truth for the content.
+This repository holds two things: the resume itself, and the website that
+publishes it.
+
+- `resume.md` — the human-authored original and the source of truth for the
+  content. Everything else that shows the resume is a transcription or an
+  export of this file.
+- `resume.html` and `resume.pdf` — rendered exports of `resume.md`.
+  `resume.pdf` is the file the site's "Download PDF" button serves:
+  `site/vite/resume-pdf.ts` reads it from the repo root at build time and
+  emits it into `site/dist/`, so it is deliberately **not** duplicated under
+  `site/public/` — one copy in git, no way for a second one to go stale.
+- `site/` — the Vite + React + TypeScript frontend deployed to GitHub Pages.
+  See [`site/README.md`](site/README.md) for the detail.
+- `.github/workflows/` — `ci.yml` is the pull-request gate; `deploy-pages.yml`
+  builds `site/` and publishes it to Pages.
+
+The live site: <https://brettbergin.github.io/resume/>
 
 ```bash
 cd site
@@ -138,3 +153,15 @@ npm install     # install dependencies
 npm run dev     # local dev server
 npm run build   # production build into site/dist
 ```
+
+### Keeping content in sync
+
+`resume.md` and `site/src/data/resume.ts` are transcriptions of each other,
+not generated from one another, so a content change has to edit **both, in the
+same commit** — otherwise the page and the resume disagree. `resume.html` and
+`resume.pdf` are regenerated from `resume.md` by hand as well. The
+`References` section of `resume.md` is deliberately not modelled in
+`resume.ts` and has no counterpart on the site.
+
+This is all manual today. Automating the transcription — generating
+`resume.ts` (and the exports) from `resume.md` — would be a separate change.

@@ -16,7 +16,8 @@ import { resumePdf } from '../vite/resume-pdf.ts'
  * Both hooks are driven directly with stand-in `config`/`server`/`req`/`res`
  * objects — a real build or dev server would cost seconds per assertion and
  * test Vite rather than this plugin. What the real build produces is checked
- * once, by the `cmp dist/resume.pdf ../resume.pdf` step in CI.
+ * once, by ci.yml's "Compare emitted PDF with the repo-root one" step, which
+ * runs `cmp dist/resume.pdf ../resume.pdf` after the build.
  */
 
 const here = dirname(fileURLToPath(import.meta.url))

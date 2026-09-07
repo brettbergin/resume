@@ -78,6 +78,9 @@ const stepNamed = (job: Job | undefined, name: string): Step | undefined =>
  */
 const lintRun = stepNamed(checkJob, 'Lint')?.run ?? ''
 
+/** The command that checks the built asset against the file it came from. */
+const comparePdfRun = 'cmp dist/resume.pdf ../resume.pdf'
+
 describe('CI workflow triggers', () => {
   it('parses as YAML with exactly one job', () => {
     expect(Object.keys(jobs)).toEqual(['check'])
@@ -89,6 +92,14 @@ describe('CI workflow triggers', () => {
     expect(workflow.on?.pull_request?.paths).toContain(
       '.github/workflows/ci.yml',
     )
+  })
+
+  it('runs on pull requests that only regenerate the PDF', () => {
+    // The build copies the repo-root PDF into dist/, so a change to that file
+    // alone still has to run the step that compares the two — without the
+    // path, the pull request most likely to break the download is the one CI
+    // stays silent on.
+    expect(workflow.on?.pull_request?.paths).toContain('resume.pdf')
   })
 
   it('does not duplicate the deploy workflow, and vice versa', () => {
@@ -142,6 +153,19 @@ describe('CI check job', () => {
       expect(runsIn(checkJob!, step!), commands[index]).toBe('site')
     }
     expect(new Set(steps).size).toBe(commands.length)
+  })
+
+  it('compares the emitted PDF with the repo-root one after building', () => {
+    // The plugin behind the download button is unit-tested against stand-in
+    // Vite objects, so this step is the only check on what the real build
+    // emits. It has to run after the build that produces dist/, and inside
+    // site/ for both of its relative paths to point where they should.
+    const compare = stepRunning(checkJob, comparePdfRun)
+    expect(compare).toBeDefined()
+    expect(runsIn(checkJob!, compare!)).toBe('site')
+    expect(stepIndex(checkJob, comparePdfRun)).toBeGreaterThan(
+      stepIndex(checkJob, 'npm run build'),
+    )
   })
 
   it('leaves the vitest suite to a separate change', () => {
