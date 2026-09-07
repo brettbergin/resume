@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { contact } from '../data/resume.ts'
@@ -51,6 +51,24 @@ describe('Footer', () => {
       'Email',
       'GitHub',
     ])
+  })
+
+  it('groups the contact links as a list, not a second nav landmark', () => {
+    // The header's <nav aria-label="Primary"> is the page's one navigation
+    // landmark. These two are contact details — a mailto and an external
+    // profile — so they are a list; src/a11y.test.tsx asserts the page-wide
+    // count that this keeps at one.
+    render(<Footer />)
+
+    expect(screen.queryByRole('navigation')).toBeNull()
+
+    const list = screen.getByRole('list')
+    const items = within(list).getAllByRole('listitem')
+
+    expect(items).toHaveLength(2)
+    for (const item of items) {
+      expect(within(item).getAllByRole('link')).toHaveLength(1)
+    }
   })
 
   it('credits the stack the site is built with', () => {

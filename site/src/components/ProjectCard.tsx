@@ -18,21 +18,12 @@
  */
 
 import type { Project } from '../data/types.ts'
-
-/** Shared with every interactive element so keyboard users can always see
- * where they are. Matches the hero's and the header's ring. */
-const FOCUS_RING =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-
-/** A 44px-tall tap target (Tailwind's 11 = 2.75rem), the minimum comfortable
- * touch size — the same floor as the hero's buttons. A *minimum*, never a
- * height: the card is as tall as its cell and its text. */
-const TAP_TARGET = 'min-h-11'
+import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../styles.ts'
 
 /** The same token vocabulary the achievements and skills cards use, so the
  * three sections read as one system. `h-full` is what squares the cards off in
  * a row once the grid has more than one column. */
-const CARD = `flex h-full ${TAP_TARGET} flex-col gap-2 rounded-card border border-border bg-surface p-4 hover:border-accent ${FOCUS_RING}`
+const CARD = `flex h-full ${TAP_TARGET_HEIGHT} flex-col gap-2 rounded-card border border-border bg-surface p-4 hover:border-accent ${FOCUS_RING}`
 
 export function ProjectCard({ project }: { project: Project }) {
   return (

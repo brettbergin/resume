@@ -20,6 +20,7 @@ import type { KeyboardEvent, ReactNode } from 'react'
 
 import { summary } from '../data/resume.ts'
 import { sections } from '../data/sections.ts'
+import { FOCUS_RING, TAP_TARGET } from '../styles.ts'
 
 /** Everything the panel can contain that takes focus. It holds only links and
  * the close button, so this stays a short selector rather than a general
@@ -31,15 +32,6 @@ const FOCUSABLE = 'a[href], button:not([disabled])'
  * the mobile menu stops being displayed. Kept in step with the `md:` classes
  * below by `Header.test.tsx`. */
 const DESKTOP_QUERY = '(min-width: 48rem)'
-
-/** Shared with every interactive element so keyboard users can always see
- * where they are. */
-const FOCUS_RING =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-
-/** A 44x44 tap target (Tailwind's 11 = 2.75rem), the minimum comfortable
- * touch size. */
-const TAP_TARGET = 'min-h-11 min-w-11'
 
 function focusablesIn(container: HTMLElement | null): HTMLElement[] {
   if (!container) return []
@@ -185,7 +177,7 @@ export function Header({ children }: { children?: ReactNode }) {
                the panel, so advertising it when closed points at nothing. */
             aria-controls={open ? menuId : undefined}
             onClick={() => setOpen((wasOpen) => !wasOpen)}
-            className={`inline-flex ${TAP_TARGET} items-center justify-center gap-2 rounded-pill border border-border px-3 text-sm text-text md:hidden ${FOCUS_RING}`}
+            className={`inline-flex ${TAP_TARGET} items-center justify-center gap-2 rounded-pill border border-border-strong px-3 text-sm text-text md:hidden ${FOCUS_RING}`}
           >
             <svg
               aria-hidden="true"
@@ -217,7 +209,7 @@ export function Header({ children }: { children?: ReactNode }) {
             <button
               type="button"
               onClick={dismiss}
-              className={`inline-flex ${TAP_TARGET} items-center justify-center gap-2 rounded-pill border border-border px-3 text-sm text-text ${FOCUS_RING}`}
+              className={`inline-flex ${TAP_TARGET} items-center justify-center gap-2 rounded-pill border border-border-strong px-3 text-sm text-text ${FOCUS_RING}`}
             >
               <svg
                 aria-hidden="true"

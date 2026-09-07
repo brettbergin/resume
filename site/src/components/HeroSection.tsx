@@ -16,20 +16,15 @@
  */
 
 import { contact, summary } from '../data/resume.ts'
+import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../styles.ts'
 
-/** Shared with every interactive element so keyboard users can always see
- * where they are. Matches the header's and the footer's ring. */
-const FOCUS_RING =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-
-/** A 44px-tall tap target (Tailwind's 11 = 2.75rem), the minimum comfortable
- * touch size. Full width below `sm`, where the buttons are stacked, and
- * content width once they sit in a row. */
-const CTA = `inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-pill px-4 text-base sm:w-auto ${FOCUS_RING}`
+/** Full width below `sm`, where the buttons are stacked, and content width
+ * once they sit in a row. */
+const CTA = `inline-flex ${TAP_TARGET_HEIGHT} w-full items-center justify-center gap-2 rounded-pill px-4 text-base sm:w-auto ${FOCUS_RING}`
 
 const PRIMARY_CTA = `${CTA} bg-accent font-medium text-accent-contrast hover:opacity-90`
 
-const SECONDARY_CTA = `${CTA} border border-border text-text hover:border-accent hover:text-accent`
+const SECONDARY_CTA = `${CTA} border border-border-strong text-text hover:border-accent hover:text-accent`
 
 export function HeroSection({ headingId }: { headingId: string }) {
   return (

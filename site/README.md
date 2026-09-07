@@ -55,7 +55,8 @@ Run `npm test` locally before opening a pull request.
 
 **A green CI run says nothing about layout, viewport behaviour or
 accessibility.** There is no browser in the CI runner, so responsive and a11y
-behaviour is still verified by hand: see
+behaviour is still verified by hand: see [Accessibility](#accessibility) for
+what *is* asserted mechanically and what is not, and
 [Mobile-first contract](#mobile-first-contract) below for the checklist to
 walk. A passing check means the code lints, compiles and builds — not that the
 site is mobile-friendly.
@@ -412,6 +413,68 @@ property access itself — and a stored value that is not exactly `light` or
 `src/components/ThemeToggle.tsx` is the user-facing switch: one `<button>`
 with `aria-pressed` and a state-reflecting `aria-label`, calling `setTheme`.
 
+## Accessibility
+
+The accessibility pass is split the same way the mobile-first contract below
+is, and for the same reason: the parts of it that are *structural facts about
+the page* are asserted mechanically, and everything that needs a rendering
+engine stays a person's check in
+[Manual check](#manual-check-widths-mobile-menu-theme-persistence).
+
+| File | What it asserts |
+| ---- | --------------- |
+| `src/a11y.test.tsx` | The page-wide contract over the tree `<App />` renders: exactly one `banner`, `navigation`, `main` and `contentinfo` landmark and exactly one `<h1>` (the hero's name); heading levels that never jump by more than one; the skip link being the first focusable element and targeting the `#main` landmark; a non-empty accessible name on every link and button; an `alt` attribute on every rendered `<img>` (plus a source sweep, since the page renders none today) and `aria-hidden` on every decorative `<svg>`; and a `focus-visible:outline-*` ring and a 44px `min-h-11` floor on every control — re-run with the mobile menu open, so the panel's links are held to the same rules |
+| `src/theme-contrast.test.ts` | Token parity and declared contrast over `src/index.css` read as text: every property `.dark` reassigns exists in `@theme` and every semantic `@theme` token is reassigned in `.dark`, so neither palette can fall back to an undefined value; and each semantic token resolved through the ramps to a hex, with the WCAG 2.x ratio computed per theme — 4.5:1 for text pairs (AA 1.4.3) and 3:1 for `--color-border-strong` (AA 1.4.11) |
+| `test/layout-contract.test.ts` | The source guards: no width or minimum width pinned in pixels, no `overflow-x-hidden`, no arbitrary font size below `1rem`, no gap under `gap-2`, the three content columns padded to the same edges, and no component declaring the focus ring itself instead of importing `FOCUS_RING` from `src/styles.ts` |
+| `test/index-html.test.ts` | The document-level half a client-rendered page cannot assert from the React tree: the `lang` attribute on `<html>`, and that nothing focusable sits outside `#root` — which is what lets "first focusable element of the render" mean "first focusable element of the page" |
+
+`src/styles.ts` is why the per-control assertions are possible at all: the focus
+ring (`FOCUS_RING`) and the 44px target (`TAP_TARGET`, `TAP_TARGET_HEIGHT`) are
+one string each, imported by every component, so one test can sweep every
+control for them. Six private copies of the same class list could each drift on
+their own, and nothing page-wide could check a floor that is only ever written
+locally.
+
+**A green CI run still says nothing about rendered layout, focus visibility or
+real contrast.** There is no browser in the runner. jsdom reports every width as
+0 and applies no Tailwind stylesheet at all, so nothing above knows whether a
+focus ring is actually drawn, whether a 44px minimum survives its container,
+whether anything overflows at 320px, or what a browser really composites — a
+translucent overlay, a hover state, a sticky header on top of text. The
+contrast numbers are arithmetic on declared token values: they catch a token
+moved down the ramp and nothing else. All of that is why the checklist below
+exists, and why the Lighthouse and axe items in it are the acceptance criteria
+rather than a suite.
+
+### `--color-border` vs `--color-border-strong`
+
+The border token is split in two, in both palettes:
+
+- `--color-border` (light `neutral-200`, dark `neutral-700`) draws **decorative
+  rules** — the header and footer hairlines, the experience timeline's
+  connecting line, the skill chips, and the card borders in the skills,
+  projects and achievements grids. At 1.24:1 on the light background it is a
+  divider, not a boundary anything is identified by.
+- `--color-border-strong` (light `neutral-500`, dark `neutral-400`) draws the
+  **visual boundary of an outlined control** — the header's menu and close
+  buttons, the theme toggle, the hero's secondary CTAs and the experience
+  show-more button. WCAG 2.1 AA 1.4.11 (Non-text Contrast) wants 3:1 for a
+  boundary that is what identifies a component, and it clears that in both
+  themes (4.83:1 / 4.63:1 light, 6.99:1 / 5.78:1 dark on `bg` and `surface`).
+  `theme-contrast.test.ts` pins those thresholds; `--color-border` is
+  deliberately absent from that table.
+
+**The project card was left on the decorative token on purpose, and that is a
+human review item.** A project card is the only card on the page that is itself
+a control — the whole card is the link — so an argument exists for giving it the
+3:1 boundary. It keeps `border-border` because it is a filled `bg-surface`
+surface with its own hover (`hover:border-accent`) and focus-ring treatments, so
+its border is not the only thing identifying it, and because matching the
+neighbouring achievement and skill cards is the intended visual system. Whether
+that trade is right is a design call about how the grid reads, which no test in
+this repo can make — walk the `Projects at …` items and the axe run in the
+checklist below and decide it by eye.
+
 ## Mobile-first contract
 
 - Tailwind's **default breakpoints are unchanged**: `sm` 640px, `md` 768px,
@@ -448,8 +511,37 @@ crosses it in one gesture); `Header.test.tsx` covers it.
 
 Layout can't be asserted in CI (there's no browser in the build sandbox), so
 walk this list by hand when changing the shell. `npm run dev`, then in
-devtools responsive mode:
+devtools responsive mode.
 
+**The matrix.** Every cell below is one pass: a width, walked over *every*
+section, in *both* palettes. Flip the palette with the in-page theme toggle, or
+from the console:
+
+```js
+document.documentElement.classList.add('dark') // or .remove('dark')
+```
+
+At every width, in the light theme and then again in the dark one, walk Hero
+(About), Skills, Experience, Projects, Achievements and the Contact placeholder
+and check three things in each: no horizontal scroll, no text clipped,
+truncated or overlapping, and no tap target cramped against its neighbour.
+
+| Width  | Stands in for            | Layout expected there                                              |
+| ------ | ------------------------ | ------------------------------------------------------------------ |
+| 320px  | smallest common phone    | one column everywhere; the contract's floor — nothing may overflow  |
+| 375px  | iPhone SE / standard phone | one column; header collapsed to the menu button                   |
+| 768px  | tablet / iPad portrait (`md`) | inline nav has taken over; the card and skill grids are two columns |
+| 1024px | tablet landscape / small laptop (`lg`) | the grids are three columns, still inside `max-w-5xl` |
+| 1440px | desktop                  | content centred in its `max-w-5xl` column, header and footer aligned |
+
+- [ ] All five widths × both palettes × every section, per the paragraph above:
+      **10 passes**, and the horizontal-scroll check in each of them is the
+      console reporting `true` for:
+      ```js
+      document.documentElement.scrollWidth === document.documentElement.clientWidth
+      ```
+      Nothing below replaces this sweep — the per-section items are what to
+      look at closely inside each cell.
 - [ ] **320px** (smallest supported) — no horizontal scrollbar, and the
       console reports equal values for:
       ```js
@@ -459,6 +551,14 @@ devtools responsive mode:
       menu button and still leaves most of the viewport to content.
 - [ ] **768px** (the `md` breakpoint) — the inline nav has taken over from the
       menu button, with nothing overlapping or clipped.
+- [ ] **1024px** (the `lg` breakpoint, tablet landscape / small laptop) — the
+      skills, projects and achievements grids have gone from two columns to
+      three without a card's content being squeezed into a scrollbar or a
+      clipped line, the nav still fits the bar on one line, and
+      `scrollWidth === clientWidth` still holds. This is the first width at
+      which the three-column layouts are narrower than they are at 1440px —
+      `max-w-5xl` (64rem) is wider than the viewport here, so the column is the
+      viewport minus its padding rather than its full width.
 - [ ] **1440px** — content stays in its `max-w-5xl` column, centred, with the
       header bar and footer aligned to the same width.
 - [ ] Footer contact links stack (or wrap) rather than overflowing at 320px
@@ -561,15 +661,56 @@ devtools responsive mode:
 - [ ] With the menu open at 375px, the theme toggle in the bar is behind the
       full-screen panel — expected; close the menu and it is right there.
       (jsdom has no stacking context, so this one cannot be asserted in CI.)
-- [ ] Tab from the very top of the page: the first stop is the "Skip to
-      content" link, which is visible while focused and jumps to `<main>`.
+- [ ] **Keyboard-only walk, from a fresh load.** Reload, click nothing, and
+      Tab from the very top of the page with the mouse untouched. `a11y.test.tsx`
+      pins the ring's *class* on every control; whether a ring is actually
+      drawn, and whether the element it is drawn on is scrolled into view rather
+      than sitting under the sticky header, is only visible in a browser.
+      - The **first stop is the "Skip to content" link** — nothing precedes it
+        — it becomes visible while focused (it is `sr-only` otherwise), and
+        Enter jumps to `<main>` so the next Tab lands inside the content rather
+        than back at the nav.
+      - Tab back to the top and continue through **every subsequent stop**:
+        wordmark, the inline nav links (or the menu button below `md`), the
+        theme toggle, the hero's three CTAs, each project card, the show-more
+        button if any role renders one, and the footer's email and GitHub
+        links. Each one shows a **visible focus ring** and is fully on screen
+        when it takes focus.
+      - Nothing is reachable that should not be, and nothing interactive is
+        skipped: the tab order matches reading order, and no stop is a dead
+        element that swallows focus without doing anything on Enter/Space.
+      - Then the mobile menu's open/trap/Escape walk — the `Mobile menu,
+        keyboard only` item above — which is the one place focus is deliberately
+        confined.
+      - Repeat the whole walk **in the dark palette**: the ring is
+        `outline-accent`, and the accent token is a different colour there.
 - [ ] **Theme persistence**: toggle to the other theme, reload the page, and
       confirm it comes up in the chosen theme with no flash of the other
       palette. Clear the `resume-theme` key in devtools > Application >
       Local Storage, reload, and confirm it follows the OS preference again.
 - [ ] Repeat the width checks with the dark palette applied
       (`document.documentElement.classList.add('dark')`) — both palettes must
-      pass.
+      pass. This is the second half of every cell of the matrix at the top of
+      this list, not an extra pass over one width.
+- [ ] **Tap targets: ≥ 44×44 with spacing, at 320px and then at 375px.** The
+      classes are pinned (`min-h-11` / `min-w-11` from `src/styles.ts`, asserted
+      on every control by `src/a11y.test.tsx`), but a minimum height says
+      nothing about the box a browser actually lays out — a flex parent, a
+      wrapped line or a shrunk container can all leave the rendered target
+      smaller than the utility promises. So inspect the real boxes: select each
+      of these in devtools and read its computed width and height off the box
+      model, both **≥ 44**.
+      - The menu button, and — with the panel open — its close button and each
+        of the six section links.
+      - The theme toggle in the header bar.
+      - The hero's three CTAs (Download PDF, GitHub, Email).
+      - Each project card (the whole card is the target).
+      - The show-more button, if any role's bullets have grown past four.
+      - The footer's email and GitHub links.
+      - And between them: at least 8px of clear space to the next target in
+        every direction. Two 44px targets 4px apart still mis-tap. Where a row
+        wraps at 320px, check the *vertical* gap between the wrapped lines too
+        — that is the one the `gap-*` utility is easiest to lose.
 - [ ] **Social preview, against the live URL** — the tags and the PNG are
       pinned by `test/metadata.test.ts` and `test/assets.test.ts`, but whether
       a consumer actually renders the card is a person's check, and it can only
@@ -603,3 +744,23 @@ devtools responsive mode:
       that first paint — if it flashes or stays light, the `theme-color` swap
       in the inline `<head>` script is not running before the paint. Repeat
       with the OS set to dark and the toggle set to light.
+- [ ] **Lighthouse accessibility ≥ 95, against the live URL**
+      (https://brettbergin.github.io/resume/), not `npm run dev`. Chrome
+      devtools > Lighthouse > Accessibility, or
+      `npx lighthouse https://brettbergin.github.io/resume/ --only-categories=accessibility`.
+      The score is the acceptance criterion for issue #11; the audits it fails
+      are the useful part, so read them even when the number clears 95.
+- [ ] **Lighthouse mobile run, no major mobile-usability warnings.** Same URL,
+      device *Mobile*, with the Performance and Best Practices categories on.
+      What must not appear: "Tap targets are not sized appropriately" or
+      "Content is not sized correctly for the viewport" — the two audits that
+      correspond to the tap-target and horizontal-scroll sweeps above, measured
+      by a real engine instead of by eye.
+- [ ] **axe, in both themes, no contrast failures.** Run the axe DevTools
+      extension (or `@axe-core/cli`) over the page once in the **light** palette
+      and once in the **dark** one — toggling the theme changes every colour on
+      the page, so a single run covers half the site. `src/theme-contrast.test.ts`
+      computes ratios from the declared tokens; axe measures what the browser
+      actually composited, which is the only thing that catches a hover state,
+      an `sr-only` element made visible, or text over a translucent surface.
+      Zero `color-contrast` violations in each theme.
