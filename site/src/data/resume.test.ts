@@ -21,6 +21,43 @@ import type { SkillGroup } from './types.ts'
 /** Every skill group on the page, whichever section it renders in. */
 const skillGroups: SkillGroup[] = [...competencies, ...technicalSkills]
 
+const monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
+/** The shape every `dates` string uses: `Month YYYY - Month YYYY|Present`. */
+const datesPattern = new RegExp(
+  `^(?:${monthNames.join('|')}) \\d{4} - (?:(?:${monthNames.join('|')}) \\d{4}|Present)$`,
+)
+
+/**
+ * Turn the `Month YYYY` half of a `dates` string into a comparable number.
+ * `dates` is a display string by design (see types.ts), so the test parses it
+ * rather than the data carrying a second machine-readable field.
+ */
+function monthStamp(monthAndYear: string): number {
+  const [month, year] = monthAndYear.split(' ')
+  const monthIndex = monthNames.indexOf(month)
+  expect(monthIndex, `unknown month in "${monthAndYear}"`).toBeGreaterThan(-1)
+  return Date.UTC(Number(year), monthIndex)
+}
+
+/** The start half of a `dates` string, as a comparable number. */
+function startOf(dates: string): number {
+  return monthStamp(dates.split(' - ')[0])
+}
+
 describe('resume section counts', () => {
   it('keeps every achievement from resume.md', () => {
     expect(achievements).toHaveLength(7)
@@ -103,6 +140,39 @@ describe('resume entries', () => {
     expect(withMetric.length).toBeGreaterThan(0)
     for (const achievement of withMetric) {
       expect(achievement.metric, achievement.text).not.toBe('')
+    }
+  })
+})
+
+/*
+ * The timeline renders `experiences` in array order and deliberately does no
+ * sorting of its own, so "reverse-chronological" is a promise the data keeps,
+ * not the component. That makes this the right place for the guard: swapping
+ * two roles in resume.ts fails here rather than silently rendering out of
+ * order.
+ */
+describe('experiences are reverse-chronological', () => {
+  it('formats every date range as `Month YYYY - Month YYYY|Present`', () => {
+    for (const experience of experiences) {
+      expect(experience.dates, experience.company).toMatch(datesPattern)
+    }
+  })
+
+  it('never lets a role start later than the role above it', () => {
+    for (let index = 1; index < experiences.length; index += 1) {
+      const previous = experiences[index - 1]
+      const current = experiences[index]
+      expect(
+        startOf(current.dates),
+        `${current.company} (${current.dates}) should not start after ${previous.company} (${previous.dates})`,
+      ).toBeLessThanOrEqual(startOf(previous.dates))
+    }
+  })
+
+  it('keeps the only current role at the top', () => {
+    for (const [index, experience] of experiences.entries()) {
+      if (index === 0) continue
+      expect(experience.dates, experience.company).not.toMatch(/Present$/)
     }
   })
 })

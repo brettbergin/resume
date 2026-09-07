@@ -135,6 +135,8 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 | `src/components/Header.tsx`       | Sticky bar: wordmark, inline section nav from `md` up, menu button + full-screen panel below it |
 | `src/components/HeroSection.tsx`  | The About section's content: name (the page's one `<h1>`), title, location, professional summary and the three CTAs |
 | `src/components/SkillsSection.tsx` | The Skills section's content: the core competencies and technical skill groups from `src/data/resume.ts`, each group a labelled cluster of chips in a responsive grid |
+| `src/components/ExperienceSection.tsx` | The Experience section's content: the section heading, and one entry per role by mapping `experiences` from `src/data/resume.ts` in the array's own order |
+| `src/components/ExperienceEntry.tsx` | One role's card: title, company, dates and location, its timeline marker and connecting line, and its bullet highlights plus the show-more toggle |
 | `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
 | `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
 | `src/data/sections.ts`            | The section registry: the single source of both the nav entries and the section ids   |
@@ -148,13 +150,14 @@ of links, so a nav link can never point at an id the page does not render.
 `src/App.test.tsx` asserts exactly that: every same-page href resolves to an
 element that exists in the document.
 
-**About and Skills are filled in — by `HeroSection` and `SkillsSection`; the
-remaining four registry entries (Experience, Projects, Achievements, Contact)
-are still placeholders** ("Coming soon."). `App.tsx` maps the registry as
-before and picks each section's body in one place: a `sectionBody(section)`
-helper switches on `section.id`, returning `<HeroSection>` for `about`,
-`<SkillsSection>` for `skills` and the placeholder heading + "Coming soon."
-for everything else. The `<section id aria-labelledby>` wrapper (and with it
+**About, Skills and Experience are filled in — by `HeroSection`,
+`SkillsSection` and `ExperienceSection`; the three registry entries that
+remain (Projects, Achievements, Contact) are still placeholders** ("Coming
+soon."). `App.tsx` maps the registry as before and picks each section's body
+in one place: a `sectionBody(section)` helper switches on `section.id`,
+returning `<HeroSection>` for `about`, `<SkillsSection>` for `skills`,
+`<ExperienceSection>` for `experience` and the placeholder heading + "Coming
+soon." for everything else. The `<section id aria-labelledby>` wrapper (and with it
 the nav anchor and the scroll offset) is the registry's in every case, and a
 filled-in section renders the heading that wrapper is labelled by, from the
 registry's own `label`, so the nav text and the on-page heading cannot drift.
@@ -169,6 +172,25 @@ walk the `Skills at …` items in [Manual check](#manual-check-widths-mobile-men
 below after touching it. Both palettes are covered by that list's existing
 "repeat the width checks with the dark palette" item; there is no separate
 dark-mode pass for this section.
+
+The experience timeline **renders `experiences` in the array's own order and
+sorts nothing in the component** — no `sort`, `reverse` or `slice` in
+`ExperienceSection` or `ExperienceEntry`. `resume.ts` stores the roles
+most-recent-first, and the reverse-chronological guarantee is asserted over
+the data instead, by the `experiences are reverse-chronological` tests in
+`src/data/resume.test.ts` (they parse each `dates` range and fail if a role
+starts later than the one above it). A chronology re-derived in the view would
+just be a second place for it to disagree with `resume.md`. The timeline is a
+**single left-aligned column at every width** — the connecting line is each
+entry's own left border with the marker disc straddling it, and the content
+sits to its right; there is deliberately no alternating/two-sided variant,
+which needs width a phone does not have. Bullet highlights collapse behind a
+show-more toggle past `VISIBLE_HIGHLIGHTS` (4) — a role with five or more
+hides the remainder — so a role that grows in `resume.ts` cannot silently turn
+the section into a wall of text on a phone. **No current entry reaches that
+threshold** (every role has three highlights), so the toggle does not render
+against the live data; `ExperienceEntry.test.tsx` exercises the collapsing
+against fixtures.
 
 The **theme toggle lives in the header bar** at both widths, next to the menu
 button, rather than being duplicated into the mobile panel — one toggle in the
@@ -331,6 +353,19 @@ devtools responsive mode:
       nothing overlapping or clipped and no horizontal scrollbar.
 - [ ] **Skills at 1440px** — the grid is three columns inside the `max-w-5xl`
       column, its outer edges aligned with the header bar and the footer.
+- [ ] **Experience at 375px** — the timeline reads as one left-aligned column
+      (marker and connecting line on the left, the role's content to its
+      right), with no horizontal scrollbar (same `scrollWidth === clientWidth`
+      check), and company, title, dates and location wrapping onto a second
+      line rather than being clipped or truncated.
+- [ ] **Experience at 768px and at 1440px** — the entries stay inside the
+      shared `max-w-5xl` column, their edges aligned with the header bar and
+      the footer, with nothing overlapping or pushed past the column's right
+      edge.
+- [ ] **Show-more toggle**, if any role's bullets have grown past four so it
+      renders: the button is comfortably tappable at 375px (inspect it: its
+      box height in devtools is ≥ 44), and expanding it reveals the remaining
+      bullets without widening the page.
 - [ ] **No proficiency bars, ratings or percentages** on any chip — the source
       resume has none, so any such figure would be invented. Chips are plain
       labels, and each has visible padding and spacing rather than running
