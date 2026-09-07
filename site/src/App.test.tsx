@@ -6,6 +6,7 @@ import App from './App.tsx'
 import {
   competencies,
   contact,
+  experiences,
   summary,
   technicalSkills,
 } from './data/resume.ts'
@@ -27,7 +28,7 @@ import { sections } from './data/sections.ts'
 
 /** Registry entries whose content has been built; the rest still render the
  * label-plus-"Coming soon." placeholder. Extend as sections land. */
-const FILLED_SECTION_IDS: string[] = ['about', 'skills']
+const FILLED_SECTION_IDS: string[] = ['about', 'skills', 'experience']
 
 /** Every same-page anchor in the document: the skip link plus both navs. */
 function fragmentLinks(): HTMLAnchorElement[] {
@@ -221,6 +222,66 @@ describe('App skills section', () => {
 
     expect(scope.getByText(competencies[0].label)).toBeDefined()
     expect(scope.getByText(technicalSkills[0].items[0])).toBeDefined()
+  })
+})
+
+/*
+ * Same division again: the timeline treatment, the ordering and the show-more
+ * toggle are asserted next to ExperienceSection/ExperienceEntry, and what is
+ * checked here is the shell's part — that the section is filled, that the
+ * heading its wrapper is labelled by is the one the component renders, and
+ * that the per-role <h3>s did not add a second <h2> or a competing <h1>.
+ */
+describe('App experience section', () => {
+  /** Scoped: the nav and the placeholder assertions also mention "Experience",
+   * and roles repeat company names across sections of the page. */
+  function experience() {
+    return document.getElementById('experience')!
+  }
+
+  const experienceLabel = sections.find(
+    (section) => section.id === 'experience',
+  )!.label
+
+  it('fills the experience section instead of a placeholder', () => {
+    render(<App />)
+
+    expect(within(experience()).queryByText('Coming soon.')).toBeNull()
+  })
+
+  it('labels the section by the heading the experience section renders', () => {
+    render(<App />)
+
+    const labelledBy = experience().getAttribute('aria-labelledby')!
+    const heading = document.getElementById(labelledBy)
+
+    expect(heading).not.toBeNull()
+    expect(experience().contains(heading)).toBe(true)
+    expect(heading!.textContent).toBe(experienceLabel)
+  })
+
+  it('keeps one section heading at level 2, with the roles below it', () => {
+    render(<App />)
+
+    const scope = within(experience())
+    const headings = scope.getAllByRole('heading', { level: 2 })
+
+    expect(headings).toHaveLength(1)
+    expect(headings[0].textContent).toBe(experienceLabel)
+    expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
+    expect(scope.getAllByRole('heading', { level: 3 })).toHaveLength(
+      experiences.length,
+    )
+  })
+
+  it('renders the roles in the data module’s order inside #experience', () => {
+    render(<App />)
+
+    const roles = within(experience()).getAllByRole('heading', { level: 3 })
+
+    expect(roles.map((role) => role.textContent)).toEqual(
+      experiences.map((role) => role.title),
+    )
   })
 })
 
