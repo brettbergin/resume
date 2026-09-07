@@ -46,6 +46,20 @@
   --color-text: var(--color-neutral-900);
   --color-muted: var(--color-neutral-500);
   --color-border: var(--color-neutral-200);
+  /* The visual boundary of an outlined control — the header menu and close
+     buttons, the theme toggle, the hero's secondary CTAs and the experience
+     show-more button. WCAG 2.1 AA 1.4.11 (Non-text Contrast) wants 3:1 for a
+     boundary that is what identifies the component, and `--color-border` is
+     1.24:1 on the light background: fine for a decorative rule, not enough for
+     a control. 4.83:1 on bg, 4.63:1 on surface.
+
+     Deliberately *not* applied to the project cards. A project card is a
+     filled `bg-surface` card with its own hover and focus treatments, so its
+     border is not the only thing identifying it, and matching the neighbouring
+     achievement and skill cards is the intended visual system. Whether that
+     card's boundary needs 3:1 is a human review call about the design, not a
+     token this file can decide. */
+  --color-border-strong: var(--color-neutral-500);
   --color-accent: var(--color-brand-700);
   --color-accent-contrast: var(--color-white);
 }
@@ -57,6 +71,8 @@
   --color-text: var(--color-neutral-50);
   --color-muted: var(--color-neutral-400);
   --color-border: var(--color-neutral-700);
+  /* 6.99:1 on bg, 5.78:1 on surface. */
+  --color-border-strong: var(--color-neutral-400);
   --color-accent: var(--color-brand-400);
   --color-accent-contrast: var(--color-neutral-900);
 }

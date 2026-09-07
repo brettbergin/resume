@@ -20,14 +20,21 @@ import { SkillsSection } from './components/SkillsSection.tsx'
 import { ThemeToggle } from './components/ThemeToggle.tsx'
 import { sections } from './data/sections.ts'
 import type { PageSection } from './data/types.ts'
+import { FOCUS_RING } from './styles.ts'
 
 /* First focusable element in the document, and invisible until it takes focus:
  * a sticky header with a nav in front of the content would otherwise cost a
- * keyboard user a tab through every nav link on every visit. */
+ * keyboard user a tab through every nav link on every visit.
+ *
+ * Every style here is `focus:`-prefixed, the height included, because the link
+ * has no box at all until it is focused — the shared `TAP_TARGET_HEIGHT` would
+ * give an `sr-only` element a 44px minimum it can never show. The shared ring
+ * still applies: the link is one of the shell's controls, and until now it was
+ * the only one drawing no focus indicator of its own. */
 const SKIP_LINK =
   'sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 ' +
   'focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-pill ' +
-  'focus:border focus:border-border focus:bg-surface focus:px-4 focus:text-text'
+  `focus:border focus:border-border focus:bg-surface focus:px-4 focus:text-text ${FOCUS_RING}`
 
 /* One branch per filled-in section, and the <section> wrapper in App stays the
  * registry's either way — it owns the anchor id the nav and the scroll offset

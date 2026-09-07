@@ -30,6 +30,7 @@
 import { useState } from 'react'
 
 import type { Experience } from '../data/types.ts'
+import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../styles.ts'
 
 /** How many bullets a role may have before the rest are collapsed. Four is
  * about a phone screen's worth of highlights above the next role's heading;
@@ -48,15 +49,6 @@ function entryHeadingId({ company, dates }: Experience): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')}`
 }
-
-/** Shared with the other controls so keyboard users can always see where they
- * are. */
-const FOCUS_RING =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-
-/** A 44px-tall tap target (Tailwind's 11 = 2.75rem), the minimum comfortable
- * touch size — the same floor as the skip link and the header's controls. */
-const TAP_TARGET = 'min-h-11'
 
 export function ExperienceEntry({ experience }: { experience: Experience }) {
   const [expanded, setExpanded] = useState(false)
@@ -132,7 +124,7 @@ export function ExperienceEntry({ experience }: { experience: Experience }) {
           onClick={() => {
             setExpanded((wasExpanded) => !wasExpanded)
           }}
-          className={`mt-3 inline-flex ${TAP_TARGET} items-center rounded-pill border border-border px-4 text-base text-text hover:text-accent ${FOCUS_RING}`}
+          className={`mt-3 inline-flex ${TAP_TARGET_HEIGHT} items-center rounded-pill border border-border-strong px-4 text-base text-text hover:text-accent ${FOCUS_RING}`}
         >
           {expanded ? 'Show less' : `Show ${hiddenCount} more`}
         </button>

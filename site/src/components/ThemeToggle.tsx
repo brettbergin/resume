@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from 'react'
 
+import { FOCUS_RING, TAP_TARGET } from '../styles.ts'
 import {
   applyTheme,
   getInitialTheme,
@@ -17,15 +18,6 @@ import {
   watchPreferredTheme,
   type Theme,
 } from '../theme.ts'
-
-/** Matches the header's focus treatment so keyboard users can always see
- * where they are. */
-const FOCUS_RING =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-
-/** A 44x44 tap target (Tailwind's 11 = 2.75rem), the minimum comfortable
- * touch size. */
-const TAP_TARGET = 'min-h-11 min-w-11'
 
 /** Sun for light, crescent for dark: different shapes, so the state is not
  * carried by color alone. */
@@ -83,7 +75,7 @@ export function ThemeToggle() {
         setTheme(nextTheme)
         setThemeState(nextTheme)
       }}
-      className={`inline-flex ${TAP_TARGET} items-center justify-center rounded-pill border border-border text-text hover:text-accent ${FOCUS_RING}`}
+      className={`inline-flex ${TAP_TARGET} items-center justify-center rounded-pill border border-border-strong text-text hover:text-accent ${FOCUS_RING}`}
     >
       <ThemeIcon theme={theme} />
     </button>

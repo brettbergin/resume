@@ -45,6 +45,14 @@ const darkQuery = /DARK_QUERY = '([^']+)'/.exec(themeSource)?.[1]
 const themeColorTag = /<meta\b[^>]*name="theme-color"[^>]*>/.exec(head)?.[0]
 const themeColorContent = /content="([^"]*)"/.exec(themeColorTag ?? '')?.[1]
 
+/** The `lang` the <html> tag declares, or `undefined` if it declares none. */
+const htmlLang = /<html\b[^>]*\blang="([^"]*)"/.exec(html)?.[1]
+
+/** The document with the mount point's element removed, so the focusable-element
+ * sweep below sees only the shell around it. The div is empty in the source —
+ * React fills it at runtime — so this drops the tag pair and nothing else. */
+const outsideRoot = html.replace(/<div\b[^>]*id="root"[^>]*>[\s\S]*?<\/div>/, '')
+
 /** The inline (`src`-less) scripts in <head>, as their bodies. */
 const inlineHeadScripts = [
   ...head.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g),
@@ -128,6 +136,26 @@ describe('index.html', () => {
     expect(themeScript?.body).toMatch(/classList\.add\('dark'\)/)
     expect(themeScript?.body).toContain("'dark'")
     expect(themeScript?.body).toContain("'light'")
+  })
+
+  it('declares a language on <html>', () => {
+    // Without it a screen reader reads the page in whatever voice it happens
+    // to be set to, and this is the only place it can be declared: React never
+    // renders the <html> element.
+    expect(htmlLang).toBeDefined()
+    expect(htmlLang).not.toBe('')
+  })
+
+  it('puts nothing focusable outside #root', () => {
+    // src/a11y.test.tsx asserts the skip link is the first focusable element of
+    // the tree React renders. That only means "first on the page" while the
+    // document itself contributes no tab stop ahead of the mount point — a
+    // hand-written link or button in the HTML shell would sit before every one
+    // of them.
+    expect(html).toContain('id="root"')
+    expect(outsideRoot).not.toMatch(/<a\b[^>]*\bhref=/)
+    expect(outsideRoot).not.toMatch(/<button\b/)
+    expect(outsideRoot).not.toMatch(/\btabindex=/)
   })
 
   it('tolerates localStorage throwing', () => {

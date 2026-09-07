@@ -16,6 +16,14 @@ import { describe, expect, it } from 'vitest'
  * drift apart. The same cross-check anchors the one item of site/README.md's
  * manual checklist that stands in for a test — the Download PDF tap, which
  * needs a browser and a deployed site to verify.
+ *
+ * It pins site/README.md's Accessibility section and manual checklist the same
+ * way, and for the same reason: issue #11's review checklist needs a browser,
+ * a rendering engine or the deployed site, so the whole of it lives in prose.
+ * Prose nothing checks goes stale — a width dropped in a reword is a
+ * breakpoint nobody looks at again. So the axes are pinned as facts: the five
+ * widths, both palettes, the Lighthouse threshold, and the suites the section
+ * says do assert something mechanically.
  */
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -30,6 +38,7 @@ const viteConfig = readSiteFile('vite.config.ts')
 
 const layoutHeading = /^## Repo layout$/m
 const checklistHeading = /^### Manual check:/m
+const accessibilityHeading = /^## Accessibility$/m
 
 /** The root README from the "Repo layout" heading to the end of the file. */
 const layoutSection = (): string => {
@@ -41,6 +50,15 @@ const layoutSection = (): string => {
 const manualChecklist = (): string => {
   const start = siteReadme.search(checklistHeading)
   return start === -1 ? '' : siteReadme.slice(start)
+}
+
+/** site/README.md's Accessibility section, up to the next `##` heading. */
+const accessibilitySection = (): string => {
+  const start = siteReadme.search(accessibilityHeading)
+  if (start === -1) return ''
+  const rest = siteReadme.slice(start)
+  const end = rest.slice(1).search(/^## /m)
+  return end === -1 ? rest : rest.slice(0, end + 1)
 }
 
 /** The URL in site/README.md's `| Live URL | … |` table row. */
@@ -85,6 +103,37 @@ describe('root README repo layout', () => {
   })
 })
 
+describe('site README accessibility section', () => {
+  it('has an Accessibility section', () => {
+    expect(siteReadme).toMatch(accessibilityHeading)
+  })
+
+  it('names the suites that assert the contract mechanically', () => {
+    // The section's job is to say which facts are pinned and by what. A suite
+    // renamed or dropped without the prose following it leaves a document
+    // pointing at a file that no longer exists.
+    const section = accessibilitySection()
+
+    for (const file of [
+      'src/a11y.test.tsx',
+      'src/theme-contrast.test.ts',
+      'test/layout-contract.test.ts',
+    ]) {
+      expect(section, file).toContain(file)
+    }
+  })
+
+  it('records the two border tokens and keeps them straight', () => {
+    // The split is the one design decision of the pass that a reviewer has to
+    // re-make by eye (the project card sits on the decorative token), so the
+    // reasoning has to survive a reword.
+    const section = accessibilitySection()
+
+    expect(section).toContain('--color-border-strong')
+    expect(section).toMatch(/--color-border\b/)
+  })
+})
+
 describe('site README manual checklist', () => {
   it('keeps a Download PDF item that has to be re-checked on the live site', () => {
     // Whether the button actually yields the file is the one acceptance
@@ -96,6 +145,35 @@ describe('site README manual checklist', () => {
     expect(checklist).not.toBe('')
     expect(checklist).toContain('Download PDF')
     expect(checklist).toContain(documentedLiveUrl())
+  })
+
+  it('walks every width of the responsive matrix', () => {
+    // Issue #11's matrix is five widths, and 1024 (the `lg` breakpoint, where
+    // the card grids first go to three columns) is the one that was missing.
+    // A checklist that quietly loses a width is a breakpoint nobody looks at.
+    const checklist = manualChecklist()
+
+    for (const width of ['320', '375', '768', '1024', '1440']) {
+      expect(checklist, `${width}px`).toContain(width)
+    }
+  })
+
+  it('walks the matrix in both themes', () => {
+    // Every colour on the page changes with the palette, so a sweep in one
+    // theme covers half the site.
+    const checklist = manualChecklist()
+
+    expect(checklist).toMatch(/\blight\b/i)
+    expect(checklist).toMatch(/\bdark\b/i)
+  })
+
+  it('names the Lighthouse accessibility threshold', () => {
+    // The score is an acceptance criterion of #11 and can only be had from a
+    // deployed site, so the number lives here or nowhere.
+    const checklist = manualChecklist()
+
+    expect(checklist).toContain('Lighthouse')
+    expect(checklist).toMatch(/accessibility[^.]*\b95\b/i)
   })
 })
 

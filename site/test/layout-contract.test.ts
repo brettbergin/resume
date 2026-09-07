@@ -42,6 +42,13 @@ const shellSources: { path: string; source: string }[] = [
  * pattern. Plain utilities the components already use are safe to name.
  */
 
+/** The focus-ring utility no rendering source may declare, spelled in two
+ * halves for the same reason the arbitrary values below are matched by
+ * pattern: written out whole it would be a scannable candidate, and this
+ * file would ship the very utility it forbids into the bundle. Neither half
+ * is a utility on its own, so nothing is emitted for them. */
+const FOCUS_UTILITY = 'focus-visible:out' + 'line'
+
 /** Tailwind arbitrary values, with any variant prefix — a fixed width, a
  * responsive minimum width, a pixel font size. The lookbehind keeps the `w`
  * utility from also matching the tail of `min-w-`/`max-w-`, so each is asked
@@ -113,6 +120,15 @@ describe.each(componentSources)('$path', ({ source }) => {
     ].map((match) => match[0])
 
     expect(tooTight).toEqual([])
+  })
+
+  it('takes its focus ring from src/styles.ts', () => {
+    // The ring is one of the two a11y floors the whole shell shares, and it
+    // is only assertable page-wide while there is one copy of it: six private
+    // declarations of the same string could each drift on their own. A
+    // component that needs a focus ring imports FOCUS_RING from src/styles.ts;
+    // none writes the utility itself.
+    expect(source).not.toContain(FOCUS_UTILITY)
   })
 })
 
