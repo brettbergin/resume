@@ -137,6 +137,8 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 | `src/components/SkillsSection.tsx` | The Skills section's content: the core competencies and technical skill groups from `src/data/resume.ts`, each group a labelled cluster of chips in a responsive grid |
 | `src/components/ExperienceSection.tsx` | The Experience section's content: the section heading, and one entry per role by mapping `experiences` from `src/data/resume.ts` in the array's own order |
 | `src/components/ExperienceEntry.tsx` | One role's card: title, company, dates and location, its timeline marker and connecting line, and its bullet highlights plus the show-more toggle |
+| `src/components/ProjectsSection.tsx` | The Projects section's content: the section heading, and one card per entry of `projects` from `src/data/resume.ts` in the array's own order |
+| `src/components/ProjectCard.tsx`  | One project's card: name and description, with the whole card being the link out to the project's GitHub repo |
 | `src/components/AchievementsSection.tsx` | The Achievements section's content: the section heading, and one callout/stat card per entry of `achievements` from `src/data/resume.ts` in the array's own order |
 | `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
 | `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
@@ -151,13 +153,14 @@ of links, so a nav link can never point at an id the page does not render.
 `src/App.test.tsx` asserts exactly that: every same-page href resolves to an
 element that exists in the document.
 
-**About, Skills, Experience and Achievements are filled in — by `HeroSection`,
-`SkillsSection`, `ExperienceSection` and `AchievementsSection`; the two
-registry entries that remain (Projects, Contact) are still placeholders**
-("Coming soon."). `App.tsx` maps the registry as before and picks each
-section's body in one place: a `sectionBody(section)` helper switches on
-`section.id`, returning `<HeroSection>` for `about`, `<SkillsSection>` for
-`skills`, `<ExperienceSection>` for `experience`, `<AchievementsSection>` for
+**About, Skills, Experience, Projects and Achievements are filled in — by
+`HeroSection`, `SkillsSection`, `ExperienceSection`, `ProjectsSection` and
+`AchievementsSection`; the one registry entry that remains, Contact, is still
+a placeholder** ("Coming soon."). `App.tsx` maps the registry as before and
+picks each section's body in one place: a `sectionBody(section)` helper
+switches on `section.id`, returning `<HeroSection>` for `about`,
+`<SkillsSection>` for `skills`, `<ExperienceSection>` for `experience`,
+`<ProjectsSection>` for `projects`, `<AchievementsSection>` for
 `achievements` and the placeholder heading + "Coming soon." for everything
 else. The `<section id aria-labelledby>` wrapper (and with it
 the nav anchor and the scroll offset) is the registry's in every case, and a
@@ -193,6 +196,20 @@ the section into a wall of text on a phone. **No current entry reaches that
 threshold** (every role has three highlights), so the toggle does not render
 against the live data; `ExperienceEntry.test.tsx` exercises the collapsing
 against fixtures.
+
+The projects section renders **every entry of the `projects` export as a card,
+and the whole card is the link** to that project's GitHub repo — not a small
+"view on GitHub" link tucked into a corner, so on a phone the thing to aim at
+is the entire surface. It leaves the site, so it opens in a new tab with
+`rel="noopener noreferrer"`, the same way the hero's GitHub button does. The
+card grid is one column below `md`, two from `md` and three from `lg`, and a
+card has no fixed height and no truncation: a long description wraps and grows
+its card rather than being clipped. Walk the `Projects at …` items in
+[Manual check](#manual-check-widths-mobile-menu-theme-persistence) below after
+touching it. **Nothing on a card is derived** — no star count, language badge,
+activity figure or ordering is computed from anything; a card's name,
+description and URL are its `Project`'s and nothing else, so adding a project
+means adding it to `src/data/resume.ts` first, as content.
 
 The achievements section renders **every entry of the `achievements` export as
 a callout/stat card, not a bullet list** — each one its own bordered surface on
@@ -388,6 +405,18 @@ devtools responsive mode:
       renders: the button is comfortably tappable at 375px (inspect it: its
       box height in devtools is ≥ 44), and expanding it reveals the remaining
       bullets without widening the page.
+- [ ] **Projects at 375px** — the cards read as a single stacked column, the
+      whole card is the tap target (press anywhere on it, not just the name,
+      and the repo opens in a new tab), each description wraps onto as many
+      lines as it needs rather than being clipped, and there is no horizontal
+      scrollbar (same `scrollWidth === clientWidth` check). Repeat it at 320px,
+      the contract's floor — the longest name and description must still wrap
+      inside the card rather than widening the page.
+- [ ] **Projects at 768px and at 1440px** — the grid expands to two columns and
+      then to three inside the shared `max-w-5xl` column, its outer edges
+      aligned with the header bar and the footer, with the cards in a row
+      squared off to the same height and nothing clipped or pushed past the
+      column's right edge.
 - [ ] **Achievements at 375px** — the cards read as a single stacked column,
       the large stat numbers (`10+ million users`, `500,000+ endpoints`) sit
       inside their card without overflowing it or breaking mid-number, and
