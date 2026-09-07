@@ -10,6 +10,7 @@ Run from `site/`:
 | ------------------- | --------------------------------------------------------- |
 | `npm run dev`       | Vite dev server with HMR                                  |
 | `npm run build`     | Type-checks with `tsc -b`, then builds to `dist/`         |
+| `npm run generate:images` | Redraws the committed `public/og-image.png` and `public/apple-touch-icon.png` — see [SEO and social preview](#seo-and-social-preview) |
 | `npm run typecheck` | Type-checks the whole solution with `tsc -b --noEmit`, emitting nothing |
 | `npm run lint`      | Oxlint over the project — reports warnings, exits 0 on them (CI adds `--deny-warnings`) |
 | `npm run preview`   | Serves the built `dist/` for a production-like smoke test |
@@ -122,6 +123,92 @@ source for `resume.html` / `resume.pdf`). The two are transcriptions of each
 other, not generated from one another, so **content changes must update both
 files together.** The `References` section of `resume.md` is deliberately not
 modelled — see the comment at the top of `resume.ts`.
+
+## SEO and social preview
+
+`src/data/site.ts` is the single source of truth for everything a crawler or a
+link-preview consumer reads: the page title (built from `summary` in
+`resume.ts` rather than retyped), the ~155-character preview description, the
+canonical/deployed URL, the card's file name and its 1200x630 dimensions, and
+the two `theme-color` values. Nothing else invents those strings.
+
+**The tags themselves are literals in `index.html`, not rendered by React.**
+Link-preview crawlers (Slack, Discord, iMessage, X) and most indexers fetch the
+HTML and read it without executing JavaScript, so a `<meta>` tag injected at
+runtime is invisible to them and the shared link falls back to a bare URL.
+That is the same trade the inline theme script makes, and it has the same cost:
+the values are duplicated out of `site.ts` into the head, and duplication rots.
+`test/metadata.test.ts` is what stops the two drifting — it parses `<head>`
+into a lookup keyed by `name`/`property`/`rel` (so a reformat that changes
+nothing a crawler sees is not a failure) and asserts the title, description,
+canonical, Open Graph, Twitter Card, icon, viewport and `theme-color` tags all
+still match `site.ts`. It pins `public/robots.txt` and `public/sitemap.xml` the
+same way: those are copied verbatim by Vite and so cannot interpolate anything,
+which makes their hand-typed URLs the likeliest thing to point at the wrong
+host after a move.
+
+`og:image` and `twitter:image` are **absolute** URLs carrying the origin in
+full, while the `<link rel="icon">` and `apple-touch-icon` hrefs are
+root-relative. That asymmetry is deliberate: Vite rewrites the URLs it finds in
+`index.html` for the `/resume/` base at build time, so a hand-written prefix on
+the icons would publish `/resume/resume/favicon.svg`, but meta `content` is
+opaque to the build and a relative `og:image` is silently dropped by most
+consumers — the usual reason a preview shows the text and no picture.
+
+### The generated images
+
+`public/og-image.png` (1200x630) and `public/apple-touch-icon.png` (180x180)
+are **committed, and produced by `scripts/generate-images.ts`**
+(`npm run generate:images`). They have to be committed because a crawler
+fetches the PNG and never runs the build; the generator is committed alongside
+so the binary can always be re-derived rather than becoming a file nobody can
+reproduce. The card is drawn from `resume.ts` and `site.ts` — name, job title,
+location and GitHub URL, none of it retyped — and the touch icon is
+`public/favicon.svg` rasterised at 180, so the two icons cannot drift.
+
+The render is deterministic on purpose: Inter comes out of
+`node_modules/@fontsource-variable/inter` (the same typeface the site loads,
+pinned by the lockfile), is unpacked from WOFF2 to a scratch TTF, and is handed
+to resvg as the only font in its database with `loadSystemFonts: false`. With
+system fonts on, the bytes would depend on which fonts the machine happens to
+have and CI would produce a different card than a laptop. There is no headless
+browser or system rasteriser in the pipeline for the same reason.
+`test/assets.test.ts` checks the shipped bytes — PNG signature, the dimensions
+out of the IHDR chunk, the card's file size, and that `favicon.svg` is no
+longer Vite's default logo.
+
+**Changing the name, job title, location or GitHub URL means re-running
+`npm run generate:images` and committing the new PNG in the same change** —
+those four strings are drawn on the card, and the checked-in image is what
+gets shared until it is redrawn. A change to `title` or `description` also has
+to be copied into the literal tags in `index.html` by hand;
+`test/metadata.test.ts` fails until it is.
+
+### robots.txt and sitemap.xml
+
+`public/robots.txt` is **inert as deployed, and kept anyway.** Crawlers fetch
+`robots.txt` from the origin root only, and this is a project page under
+`/resume/` on the shared `brettbergin.github.io` origin — the file a crawler
+actually reads is `https://brettbergin.github.io/robots.txt`, served from a
+different repository. Nothing in ours controls crawling of the deployed site
+today. It becomes live the moment a custom domain is configured (the site then
+owns its origin root), and in the meantime the sitemap it names can be
+submitted to Search Console by URL, which does not go through `robots.txt` at
+all. The comment at the top of the file says so, and `test/metadata.test.ts`
+asserts the caveat is still there — without it the file looks like it does
+something it does not.
+
+`public/sitemap.xml` lists exactly one `<loc>`, the site URL. The page is one
+document navigated by in-page anchors, and a fragment is not a separate URL, so
+a second entry would be a duplicate. It carries no `<lastmod>`: nothing in this
+repo would keep a hardcoded date honest, and a date frozen at the day the file
+was written is worse than none.
+
+**None of the three acceptance criteria this is judged on can be asserted
+here** — whether the card actually renders in a consumer, whether the favicon
+shows in a tab, and whether mobile chrome matches the theme all need a browser
+and a deployed URL. They are the last three items of
+[Manual check](#manual-check-widths-mobile-menu-theme-persistence) below.
 
 ## Layout shell
 
@@ -483,3 +570,36 @@ devtools responsive mode:
 - [ ] Repeat the width checks with the dark palette applied
       (`document.documentElement.classList.add('dark')`) — both palettes must
       pass.
+- [ ] **Social preview, against the live URL** — the tags and the PNG are
+      pinned by `test/metadata.test.ts` and `test/assets.test.ts`, but whether
+      a consumer actually renders the card is a person's check, and it can only
+      be made against something deployed. Paste
+      https://brettbergin.github.io/resume/ into a Slack or Discord message
+      draft (don't send it — the unfurl appears in the composer), or into any
+      card validator, and confirm **all three** of the image, the title and the
+      description appear. Text with no picture almost always means the
+      `og:image` went relative, or the PNG 404s at the URL the tag names — open
+      that URL directly to tell the two apart.
+      - **A first paste may be served from the consumer's cache**, including a
+        cache entry created by an earlier paste of the same URL before the
+        deploy landed. Re-check after the Pages deploy has completed, and if a
+        stale card comes back use the platform's own re-scrape (X's card
+        validator, or appending a throwaway `?1` to the URL) rather than
+        assuming the tags are wrong.
+- [ ] **Favicon in the browser tab** — load the site and confirm the tab shows
+      the blue mark rather than a blank page glyph or Vite's default bolt.
+      Check it on the live URL as well as under `npm run dev`: the icon is
+      served out of `public/`, and Vite rewrites its href for the `/resume/`
+      base, so the two are not the same request. On a real iOS device, "Add to
+      Home Screen" and confirm the 180x180 `apple-touch-icon.png` is what lands
+      on the home screen — crisp, not a resampled screenshot of the page.
+- [ ] **Mobile browser chrome matches the theme** — on a real phone (devtools
+      cannot show browser chrome), load the site and confirm the address-bar
+      area matches the page background rather than the browser's default:
+      `#ffffff` in light, `#111827` in dark. Check both, and check the
+      **stored-override case specifically**: with the OS set to light, use the
+      in-page toggle to switch to dark, then reload. The stored `resume-theme`
+      choice wins over the OS preference, so the chrome must come up dark on
+      that first paint — if it flashes or stays light, the `theme-color` swap
+      in the inline `<head>` script is not running before the paint. Repeat
+      with the OS set to dark and the toggle set to light.
