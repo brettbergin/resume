@@ -13,8 +13,10 @@
 import { Footer } from './components/Footer.tsx'
 import { Header } from './components/Header.tsx'
 import { HeroSection } from './components/HeroSection.tsx'
+import { SkillsSection } from './components/SkillsSection.tsx'
 import { ThemeToggle } from './components/ThemeToggle.tsx'
 import { sections } from './data/sections.ts'
+import type { PageSection } from './data/types.ts'
 
 /* First focusable element in the document, and invisible until it takes focus:
  * a sticky header with a nav in front of the content would otherwise cost a
@@ -23,6 +25,31 @@ const SKIP_LINK =
   'sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 ' +
   'focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-pill ' +
   'focus:border focus:border-border focus:bg-surface focus:px-4 focus:text-text'
+
+/* One branch per filled-in section, and the <section> wrapper in App stays the
+ * registry's either way — it owns the anchor id the nav and the scroll offset
+ * depend on. A filled section renders the heading its wrapper is labelled by,
+ * from the registry's label so the nav and the on-page heading cannot drift;
+ * the rest keep the placeholder. */
+function sectionBody(section: PageSection) {
+  const headingId = `${section.id}-heading`
+
+  switch (section.id) {
+    case 'about':
+      return <HeroSection headingId={headingId} />
+    case 'skills':
+      return <SkillsSection headingId={headingId} heading={section.label} />
+    default:
+      return (
+        <>
+          <h2 id={headingId} className="text-2xl font-medium">
+            {section.label}
+          </h2>
+          <p className="mt-2 text-base text-muted">Coming soon.</p>
+        </>
+      )
+  }
+}
 
 function App() {
   return (
@@ -51,24 +78,7 @@ function App() {
             aria-labelledby={`${section.id}-heading`}
             className="py-8 first:pt-0"
           >
-            {/* One branch per filled-in section, and the wrapper above stays
-                the registry's either way — it owns the anchor id the nav and
-                the scroll offset depend on. The section that has its content
-                renders the heading the wrapper is labelled by; the rest keep
-                the placeholder. */}
-            {section.id === 'about' ? (
-              <HeroSection headingId={`${section.id}-heading`} />
-            ) : (
-              <>
-                <h2
-                  id={`${section.id}-heading`}
-                  className="text-2xl font-medium"
-                >
-                  {section.label}
-                </h2>
-                <p className="mt-2 text-base text-muted">Coming soon.</p>
-              </>
-            )}
+            {sectionBody(section)}
           </section>
         ))}
       </main>

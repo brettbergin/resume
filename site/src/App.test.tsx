@@ -3,7 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App.tsx'
-import { contact, summary } from './data/resume.ts'
+import {
+  competencies,
+  contact,
+  summary,
+  technicalSkills,
+} from './data/resume.ts'
 import { sections } from './data/sections.ts'
 
 /*
@@ -22,7 +27,7 @@ import { sections } from './data/sections.ts'
 
 /** Registry entries whose content has been built; the rest still render the
  * label-plus-"Coming soon." placeholder. Extend as sections land. */
-const FILLED_SECTION_IDS: string[] = ['about']
+const FILLED_SECTION_IDS: string[] = ['about', 'skills']
 
 /** Every same-page anchor in the document: the skip link plus both navs. */
 function fragmentLinks(): HTMLAnchorElement[] {
@@ -165,6 +170,57 @@ describe('App about section', () => {
     expect(
       scope.getByRole('link', { name: 'Email' }).getAttribute('href'),
     ).toBe(`mailto:${contact.email}`)
+  })
+})
+
+/*
+ * As with the hero: the groups and the chips are asserted next to the
+ * component, and what is checked here is only the shell's part — that the
+ * section is filled by SkillsSection, and that the heading the component
+ * renders is the one the registry's wrapper is labelled by.
+ */
+describe('App skills section', () => {
+  /** Scoped: the placeholder assertions and the nav also mention "Skills". */
+  function skills() {
+    return document.getElementById('skills')!
+  }
+
+  const skillsLabel = sections.find((section) => section.id === 'skills')!.label
+
+  it('fills the skills section instead of a placeholder', () => {
+    render(<App />)
+
+    expect(within(skills()).queryByText('Coming soon.')).toBeNull()
+  })
+
+  it('labels the section by the heading the skills section renders', () => {
+    render(<App />)
+
+    const labelledBy = skills().getAttribute('aria-labelledby')!
+    const heading = document.getElementById(labelledBy)
+
+    expect(heading).not.toBeNull()
+    expect(skills().contains(heading)).toBe(true)
+    expect(heading!.textContent).toBe(skillsLabel)
+  })
+
+  it('keeps the section heading at level 2, below the hero h1', () => {
+    render(<App />)
+
+    const headings = within(skills()).getAllByRole('heading', { level: 2 })
+
+    expect(headings).toHaveLength(1)
+    expect(headings[0].textContent).toBe(skillsLabel)
+    expect(within(skills()).queryAllByRole('heading', { level: 1 })).toEqual([])
+  })
+
+  it('renders content from both skill data exports inside #skills', () => {
+    render(<App />)
+
+    const scope = within(skills())
+
+    expect(scope.getByText(competencies[0].label)).toBeDefined()
+    expect(scope.getByText(technicalSkills[0].items[0])).toBeDefined()
   })
 })
 
