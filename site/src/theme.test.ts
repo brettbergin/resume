@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { site } from './data/site.ts'
 import {
   applyInitialTheme,
   applyTheme,
@@ -71,9 +72,27 @@ const STORED_VALUE_CASES: { label: string; raw?: string; stored: Theme | null }[
     { label: 'arbitrary garbage', raw: 'not-a-theme-🙃', stored: null },
   ]
 
+/** Add the `theme-color` tag index.html ships, so applyTheme has something to
+ * write. Absent unless a test asks for it: jsdom starts from an empty head,
+ * which is also the "no tag" case exercised below. */
+function addThemeColorMeta(): HTMLMetaElement {
+  const meta = document.createElement('meta')
+  meta.setAttribute('name', 'theme-color')
+  meta.setAttribute('content', site.themeColorLight)
+  document.head.append(meta)
+  return meta
+}
+
+function removeThemeColorMetas() {
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.remove()
+  }
+}
+
 beforeEach(() => {
   window.localStorage.clear()
   document.documentElement.classList.remove('dark')
+  removeThemeColorMetas()
 })
 
 afterEach(() => {
@@ -81,6 +100,7 @@ afterEach(() => {
   vi.restoreAllMocks()
   window.localStorage.clear()
   document.documentElement.classList.remove('dark')
+  removeThemeColorMetas()
 })
 
 describe('applyTheme', () => {
@@ -89,6 +109,30 @@ describe('applyTheme', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(true)
 
     applyTheme('light')
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
+  })
+
+  it('points theme-color at the palette it just applied', () => {
+    // Not two `media=` variants of the tag: those follow the OS, and a stored
+    // choice outranks the OS here, so the chrome has to be written from
+    // wherever the class is.
+    const meta = addThemeColorMeta()
+
+    applyTheme('dark')
+    expect(meta.getAttribute('content')).toBe(site.themeColorDark)
+
+    applyTheme('light')
+    expect(meta.getAttribute('content')).toBe(site.themeColorLight)
+  })
+
+  it('does nothing when the page has no theme-color tag', () => {
+    expect(() => applyTheme('dark')).not.toThrow()
+    // The class is still the thing that matters; the missing tag only costs
+    // the chrome colour.
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(document.querySelector('meta[name="theme-color"]')).toBeNull()
+
+    expect(() => applyTheme('light')).not.toThrow()
     expect(document.documentElement.classList.contains('dark')).toBe(false)
   })
 })
@@ -188,15 +232,20 @@ describe('getStoredTheme', () => {
 describe('setTheme', () => {
   it('applies the theme and persists it under the namespaced key', () => {
     mockPreferredTheme('light')
+    // This is the toggle's path, so it is where the chrome colour has to keep
+    // up at runtime rather than only on load.
+    const meta = addThemeColorMeta()
 
     setTheme('dark')
 
     expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(meta.getAttribute('content')).toBe(site.themeColorDark)
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
 
     setTheme('light')
 
     expect(document.documentElement.classList.contains('dark')).toBe(false)
+    expect(meta.getAttribute('content')).toBe(site.themeColorLight)
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
   })
 

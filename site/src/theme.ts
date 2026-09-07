@@ -14,6 +14,8 @@
  *   preference.
  */
 
+import { site } from './data/site.ts'
+
 export type Theme = 'light' | 'dark'
 
 const DARK_QUERY = '(prefers-color-scheme: dark)'
@@ -31,9 +33,30 @@ function isTheme(value: unknown): value is Theme {
   return value === 'light' || value === 'dark'
 }
 
-/** Toggle the `dark` class that drives the dark palette. */
+/**
+ * Toggle the `dark` class that drives the dark palette, and point the
+ * `theme-color` meta at that palette's background so mobile browser chrome
+ * matches the page.
+ *
+ * The tag is written from here rather than declared twice with
+ * `media="(prefers-color-scheme: …)"` variants because those follow the OS
+ * only, and on this site a stored choice outranks the OS: a visitor who picked
+ * dark on a light machine would get a white address bar over a dark page.
+ * Driving the tag from the same call that drives the class keeps the two in
+ * step, on toggle as well as on load.
+ *
+ * The lookup is guarded because nothing here requires the tag to exist — a
+ * document without it (a test fixture, an embedded render) just keeps whatever
+ * chrome the browser chose, rather than throwing on the way to a paint.
+ */
 export function applyTheme(theme: Theme): void {
   document.documentElement.classList.toggle('dark', theme === 'dark')
+
+  const meta = document.querySelector('meta[name="theme-color"]')
+  meta?.setAttribute(
+    'content',
+    theme === 'dark' ? site.themeColorDark : site.themeColorLight,
+  )
 }
 
 /** The theme the OS/browser currently prefers. */

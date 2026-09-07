@@ -2,9 +2,77 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Icons are written root-relative on purpose. Vite rewrites the URLs it
+      finds in this file for the `/resume/` base at build time, so hand-writing
+      the prefix here would publish /resume/resume/favicon.svg. The absolute
+      URLs in the meta tags below are not rewritten — meta content is opaque to
+      the build — which is why those carry the origin in full.
+    -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>site</title>
+
+    <!--
+      SEO and social-preview metadata. Written out as literals because link
+      preview crawlers and most indexers never run the bundle; anything React
+      injects at runtime is invisible to them. src/data/site.ts holds the same
+      values for the image generator, robots.txt and sitemap.xml, and
+      test/metadata.test.ts asserts the two stay in step.
+    -->
+    <title>Brett Bergin — Senior Application Security Engineer</title>
+    <meta
+      name="description"
+      content="Senior application security engineer with 10+ years building vulnerability management, DevSecOps, and cloud security programs at enterprise scale."
+    />
+    <link rel="canonical" href="https://brettbergin.github.io/resume/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Brett Bergin" />
+    <meta
+      property="og:title"
+      content="Brett Bergin — Senior Application Security Engineer"
+    />
+    <meta
+      property="og:description"
+      content="Senior application security engineer with 10+ years building vulnerability management, DevSecOps, and cloud security programs at enterprise scale."
+    />
+    <meta property="og:url" content="https://brettbergin.github.io/resume/" />
+    <!-- Absolute, not /og-image.png: a relative og:image is the usual reason a
+         preview shows the text but no picture. -->
+    <meta
+      property="og:image"
+      content="https://brettbergin.github.io/resume/og-image.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Social preview card reading “Brett Bergin — Senior Application Security Engineer”"
+    />
+
+    <!-- Without summary_large_image X renders the small square card and crops
+         the 1200x630 image to junk. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Brett Bergin — Senior Application Security Engineer"
+    />
+    <meta
+      name="twitter:description"
+      content="Senior application security engineer with 10+ years building vulnerability management, DevSecOps, and cloud security programs at enterprise scale."
+    />
+    <meta
+      name="twitter:image"
+      content="https://brettbergin.github.io/resume/og-image.png"
+    />
+
+    <!-- Mobile browser chrome. Declared with the light palette's background
+         (`--color-white`, matching site.ts) and placed above the inline theme
+         script below, which is where the dark palette's value gets swapped in
+         before the first paint: querySelector only finds an element the parser
+         has already reached. -->
+    <meta name="theme-color" content="#ffffff" />
     <!--
       Theme applied before the first paint. Inline and render-blocking on
       purpose: the app bundle is a module script and therefore deferred, so
@@ -14,8 +82,8 @@
       Mirrors getInitialTheme() in src/theme.ts — a valid stored choice wins,
       anything else falls back to the OS preference — and swallows the
       localStorage access that Safari's private mode throws on.
-      test/index-html.test.ts keeps the key and the query in step with
-      theme.ts.
+      test/index-html.test.ts keeps the key, the query and the dark
+      theme-color in step with their sources.
     -->
     <script>
       (function () {
@@ -31,6 +99,15 @@
             window.matchMedia('(prefers-color-scheme: dark)').matches)
         ) {
           document.documentElement.classList.add('dark')
+          // The same swap applyTheme() makes, for the same reason the class is
+          // set here: the chrome has to be right on the first paint, not once
+          // the deferred bundle arrives. Only the dark value is written —
+          // light is already what the tag above carries. The colour is
+          // duplicated from site.ts because an inline script cannot import.
+          var themeColor = document.querySelector('meta[name="theme-color"]')
+          if (themeColor) {
+            themeColor.setAttribute('content', '#111827')
+          }
         }
       })()
     </script>

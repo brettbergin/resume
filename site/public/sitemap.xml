@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The whole map. The site is a single page whose navigation is in-page
+  anchors, and a fragment is not a separate URL to a crawler, so there is
+  exactly one entry and there is nothing else that could go in here.
+
+  A lastmod element is deliberately absent: a hardcoded date is wrong the day
+  after it is written, nothing in this repo would update it, and a stale one
+  is worse than none — crawlers weigh it, and a date that never moves teaches
+  them the page never changes.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://brettbergin.github.io/resume/</loc>
+  </url>
+</urlset>

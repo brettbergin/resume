@@ -1,0 +1,17 @@
+# Inert as deployed, and kept anyway.
+#
+# Crawlers only ever fetch robots.txt from the origin root. This site is a
+# project page under /resume/ on the shared brettbergin.github.io origin, so
+# the file a crawler actually reads is https://brettbergin.github.io/robots.txt
+# — served from a different repository — and never this one. Nothing here
+# controls crawling of the deployed site today.
+#
+# It is still worth committing: it becomes live the moment a custom domain is
+# configured (the site then owns its origin root), and the sitemap below can
+# be submitted to Search Console by URL in the meantime, which does not go
+# through robots.txt at all.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://brettbergin.github.io/resume/sitemap.xml

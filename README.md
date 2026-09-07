@@ -142,6 +142,11 @@ publishes it.
   `site/public/` — one copy in git, no way for a second one to go stale.
 - `site/` — the Vite + React + TypeScript frontend deployed to GitHub Pages.
   See [`site/README.md`](site/README.md) for the detail.
+- `site/public/` — the files published at the site root as-is: `favicon.svg`
+  and the generated `og-image.png` / `apple-touch-icon.png` behind the SEO and
+  social-preview tags, plus `robots.txt` and `sitemap.xml`. The two PNGs are
+  committed but re-derivable — `npm run generate:images` redraws them from
+  `site/src/data/`.
 - `.github/workflows/` — `ci.yml` is the pull-request gate; `deploy-pages.yml`
   builds `site/` and publishes it to Pages.
 
