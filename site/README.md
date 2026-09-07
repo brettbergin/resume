@@ -137,6 +137,7 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 | `src/components/SkillsSection.tsx` | The Skills section's content: the core competencies and technical skill groups from `src/data/resume.ts`, each group a labelled cluster of chips in a responsive grid |
 | `src/components/ExperienceSection.tsx` | The Experience section's content: the section heading, and one entry per role by mapping `experiences` from `src/data/resume.ts` in the array's own order |
 | `src/components/ExperienceEntry.tsx` | One role's card: title, company, dates and location, its timeline marker and connecting line, and its bullet highlights plus the show-more toggle |
+| `src/components/AchievementsSection.tsx` | The Achievements section's content: the section heading, and one callout/stat card per entry of `achievements` from `src/data/resume.ts` in the array's own order |
 | `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
 | `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
 | `src/data/sections.ts`            | The section registry: the single source of both the nav entries and the section ids   |
@@ -150,14 +151,15 @@ of links, so a nav link can never point at an id the page does not render.
 `src/App.test.tsx` asserts exactly that: every same-page href resolves to an
 element that exists in the document.
 
-**About, Skills and Experience are filled in — by `HeroSection`,
-`SkillsSection` and `ExperienceSection`; the three registry entries that
-remain (Projects, Achievements, Contact) are still placeholders** ("Coming
-soon."). `App.tsx` maps the registry as before and picks each section's body
-in one place: a `sectionBody(section)` helper switches on `section.id`,
-returning `<HeroSection>` for `about`, `<SkillsSection>` for `skills`,
-`<ExperienceSection>` for `experience` and the placeholder heading + "Coming
-soon." for everything else. The `<section id aria-labelledby>` wrapper (and with it
+**About, Skills, Experience and Achievements are filled in — by `HeroSection`,
+`SkillsSection`, `ExperienceSection` and `AchievementsSection`; the two
+registry entries that remain (Projects, Contact) are still placeholders**
+("Coming soon."). `App.tsx` maps the registry as before and picks each
+section's body in one place: a `sectionBody(section)` helper switches on
+`section.id`, returning `<HeroSection>` for `about`, `<SkillsSection>` for
+`skills`, `<ExperienceSection>` for `experience`, `<AchievementsSection>` for
+`achievements` and the placeholder heading + "Coming soon." for everything
+else. The `<section id aria-labelledby>` wrapper (and with it
 the nav anchor and the scroll offset) is the registry's in every case, and a
 filled-in section renders the heading that wrapper is labelled by, from the
 registry's own `label`, so the nav text and the on-page heading cannot drift.
@@ -191,6 +193,26 @@ the section into a wall of text on a phone. **No current entry reaches that
 threshold** (every role has three highlights), so the toggle does not render
 against the live data; `ExperienceEntry.test.tsx` exercises the collapsing
 against fixtures.
+
+The achievements section renders **every entry of the `achievements` export as
+a callout/stat card, not a bullet list** — each one its own bordered surface on
+`bg-surface`, deliberately distinct from the experience timeline's markers and
+plain `<ul>` bullets so the two sections do not read as the same thing twice.
+The large accented figure at the top of a card is that entry's `metric` field,
+which is a **verbatim substring of the same bullet's `text`**; the full `text`
+is rendered underneath on every card, with or without a figure, so the callout
+is a pull-out rather than a summary and nothing in the resume is dropped or
+reworded. Because the words are already there in the bullet, the figure is
+`aria-hidden` — a screen reader hears the achievement once, not twice. The card
+grid is one column below `md`, two from `md` and three from `lg`, and the
+figure's font size steps up at `md` so it stays inside its card on a phone;
+walk the `Achievements at …` items in
+[Manual check](#manual-check-widths-mobile-menu-theme-persistence) below after
+touching it. **Nothing on a card is derived or invented** — no percentage,
+rating, progress bar or count is computed from the content, and an entry
+without a `metric` simply renders no callout. A new figure has to be added to
+`resume.md` and `src/data/resume.ts` first, as content, before it can appear
+here.
 
 The **theme toggle lives in the header bar** at both widths, next to the menu
 button, rather than being duplicated into the mobile panel — one toggle in the
@@ -366,6 +388,17 @@ devtools responsive mode:
       renders: the button is comfortably tappable at 375px (inspect it: its
       box height in devtools is ≥ 44), and expanding it reveals the remaining
       bullets without widening the page.
+- [ ] **Achievements at 375px** — the cards read as a single stacked column,
+      the large stat numbers (`10+ million users`, `500,000+ endpoints`) sit
+      inside their card without overflowing it or breaking mid-number, and
+      there is no horizontal scrollbar (same `scrollWidth === clientWidth`
+      check). Repeat it at 320px, the contract's floor — both figures must
+      still wrap inside the card rather than widening the page.
+- [ ] **Achievements at 768px and at 1440px** — the grid expands to two
+      columns and then to three inside the shared `max-w-5xl` column, its
+      outer edges aligned with the header bar and the footer, and the cards
+      still read as bordered callouts rather than looking like another copy of
+      the experience timeline.
 - [ ] **No proficiency bars, ratings or percentages** on any chip — the source
       resume has none, so any such figure would be invented. Chips are plain
       labels, and each has visible padding and spacing rather than running

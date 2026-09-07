@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App.tsx'
 import {
+  achievements,
   competencies,
   contact,
   experiences,
@@ -28,7 +29,12 @@ import { sections } from './data/sections.ts'
 
 /** Registry entries whose content has been built; the rest still render the
  * label-plus-"Coming soon." placeholder. Extend as sections land. */
-const FILLED_SECTION_IDS: string[] = ['about', 'skills', 'experience']
+const FILLED_SECTION_IDS: string[] = [
+  'about',
+  'skills',
+  'experience',
+  'achievements',
+]
 
 /** Every same-page anchor in the document: the skip link plus both navs. */
 function fragmentLinks(): HTMLAnchorElement[] {
@@ -282,6 +288,59 @@ describe('App experience section', () => {
     expect(roles.map((role) => role.textContent)).toEqual(
       experiences.map((role) => role.title),
     )
+  })
+})
+
+/*
+ * And again for the achievement cards: the card treatment and the metric
+ * callouts are asserted next to AchievementsSection, so what is checked here is
+ * the shell's part — that the section is filled rather than a placeholder, that
+ * every bullet in the data module reaches the page, and that the heading its
+ * wrapper is labelled by is the registry's label.
+ */
+describe('App achievements section', () => {
+  /** Scoped: the nav and the placeholder assertions also mention
+   * "Achievements", and the bullets echo wording used in the experience
+   * highlights. */
+  function achievementsSection() {
+    return document.getElementById('achievements')!
+  }
+
+  const achievementsLabel = sections.find(
+    (section) => section.id === 'achievements',
+  )!.label
+
+  it('fills the achievements section instead of a placeholder', () => {
+    render(<App />)
+
+    const scope = within(achievementsSection())
+
+    expect(scope.queryByText('Coming soon.')).toBeNull()
+    for (const achievement of achievements) {
+      expect(scope.getByText(achievement.text)).toBeDefined()
+    }
+  })
+
+  it('labels the section by the heading the achievements section renders', () => {
+    render(<App />)
+
+    const labelledBy = achievementsSection().getAttribute('aria-labelledby')!
+    const heading = document.getElementById(labelledBy)
+
+    expect(heading).not.toBeNull()
+    expect(achievementsSection().contains(heading)).toBe(true)
+    expect(heading!.textContent).toBe(achievementsLabel)
+  })
+
+  it('keeps one section heading at level 2 and no competing h1', () => {
+    render(<App />)
+
+    const scope = within(achievementsSection())
+    const headings = scope.getAllByRole('heading', { level: 2 })
+
+    expect(headings).toHaveLength(1)
+    expect(headings[0].textContent).toBe(achievementsLabel)
+    expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
   })
 })
 
