@@ -14,6 +14,32 @@ Run from `site/`:
 | `npm run preview` | Serves the built `dist/` for a production-like smoke test |
 | `npm test`        | Vitest once, no watch                                     |
 
+## Deployment
+
+`.github/workflows/deploy-pages.yml` builds `site/` and publishes it to GitHub
+Pages. It runs on every push to `main` that touches `site/**` (or the workflow
+file itself), and can also be started by hand from the Actions tab via
+`workflow_dispatch`. The build job runs `npm ci` then `npm run build` in
+`site/`, uploads `site/dist` as the Pages artifact, and a separate `deploy`
+job publishes it — so a type error in `tsc -b` fails the build and nothing
+gets deployed.
+
+**One-time repository setting:** a maintainer must set
+`Settings > Pages > Source: GitHub Actions` once. Until that is applied the
+deploy job fails and no URL is served, however green the build is.
+
+| Setting     | Value                                   |
+| ----------- | --------------------------------------- |
+| Live URL    | https://brettbergin.github.io/resume/   |
+| Vite `base` | `/resume/` (see `vite.config.ts`)       |
+
+The `base` in `vite.config.ts` must match the path the site is served from,
+otherwise `dist/index.html` asks for its assets at `/` and Pages returns a
+blank page with a 200. A project page lives under `/resume/`, hence
+`base: '/resume/'`. If a custom domain is ever configured, the site is served
+from the domain root instead — change `base` to `'/'` in the same change that
+adds the domain.
+
 ## Content data model
 
 `src/data/resume.ts` is the single source of truth the sections render from —
