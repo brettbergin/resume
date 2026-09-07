@@ -1,0 +1,60 @@
+name: CI
+
+# Pull-request gate for the site: lint, type-check and build. Deliberately
+# separate from deploy-pages.yml, which publishes on pushes to main — a green
+# run here means the code compiles and builds, not that the layout is right.
+# Responsive and accessibility behaviour is still verified by hand.
+on:
+  pull_request:
+    paths:
+      - site/**
+      # Changes to the workflow itself exercise CI too, so a broken edit here
+      # surfaces on the pull request that makes it.
+      - .github/workflows/ci.yml
+
+# This job publishes nothing, so it asks for no more than reading the code.
+permissions:
+  contents: read
+
+# The opposite of the deploy workflow's queueing, for the opposite reason:
+# a superseded push to a pull request has nothing half-published to protect,
+# so cancel the outdated run instead of paying for it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Three separate steps rather than one chained command: whichever one
+      # fails, the check annotates the step that actually broke.
+      # `--deny-warnings` because oxlint reports its default (correctness)
+      # rules — no-debugger, no-unused-vars and the rest — at warning severity
+      # and still exits 0, so the bare script would let them through the gate.
+      # The flag lives here rather than in the script so a local `npm run lint`
+      # stays advisory while the pull-request check is absolute.
+      - name: Lint
+        run: npm run lint -- --deny-warnings
+
+      # `typecheck` is `tsc -b --noEmit`, so this reports type errors without
+      # leaving build output behind for the build step to trip over.
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
