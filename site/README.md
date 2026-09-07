@@ -12,6 +12,21 @@ Run from `site/`:
 | `npm run build`   | Type-checks with `tsc -b`, then builds to `dist/`         |
 | `npm run lint`    | Oxlint over the project                                   |
 | `npm run preview` | Serves the built `dist/` for a production-like smoke test |
+| `npm test`        | Vitest once, no watch                                     |
+
+## Content data model
+
+`src/data/resume.ts` is the single source of truth the sections render from —
+hero, skills, experience, projects and achievements all read their content
+from its typed exports, shaped by the interfaces in `src/data/types.ts`. Every
+export is annotated against its interface, so a missing or misspelled field is
+a build error rather than a blank spot on the page.
+
+`resume.md` at the repo root remains the human-authored original (and the
+source for `resume.html` / `resume.pdf`). The two are transcriptions of each
+other, not generated from one another, so **content changes must update both
+files together.** The `References` section of `resume.md` is deliberately not
+modelled — see the comment at the top of `resume.ts`.
 
 ## Styling: Tailwind CSS v4, CSS-first
 
