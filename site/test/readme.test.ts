@@ -101,6 +101,13 @@ describe('root README repo layout', () => {
     // the site's data module are hand-kept transcriptions of each other.
     expect(layoutSection()).toContain('src/data/resume.ts')
   })
+
+  it('names the suite that checks the transcription', () => {
+    // The section says the sync is no longer entirely manual, which is only
+    // true while that suite exists. A suite renamed or dropped without the
+    // prose following it leaves the document pointing at a file that is gone.
+    expect(layoutSection()).toContain('test/resume-md-sync.test.ts')
+  })
 })
 
 describe('site README accessibility section', () => {

@@ -125,6 +125,16 @@ other, not generated from one another, so **content changes must update both
 files together.** The `References` section of `resume.md` is deliberately not
 modelled — see the comment at the top of `resume.ts`.
 
+`test/resume-md-sync.test.ts` enforces that rule: every string the data module
+transcribes — achievement texts, role highlights, skill items, project names
+and URLs, date ranges — must appear verbatim in `resume.md`, so drift fails a
+test rather than waiting for a visual review. It does not cover the `metric`
+callouts (editorial condensations), the published PDF's file name, the
+`resume.html` / `resume.pdf` exports, or the omitted `References` section.
+`src/data/resume.test.ts` stays what it was — counts and non-emptiness, plus
+the reverse-chronological check on `experiences`. Like the rest of the Vitest
+suite, both run under `npm test` and not in CI.
+
 ## SEO and social preview
 
 `src/data/site.ts` is the single source of truth for everything a crawler or a

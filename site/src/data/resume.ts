@@ -2,6 +2,9 @@
  * Resume content, transcribed from `resume.md` at the repo root. That file
  * stays the human-authored original; this one is what the site's sections
  * render from, so the two must be edited together.
+ * `test/resume-md-sync.test.ts` enforces that: every string exported here has
+ * to appear verbatim in `resume.md`, so an edit to one file and not the other
+ * fails a test.
  *
  * The `References` section of `resume.md` is deliberately not modelled here:
  * it is three third parties' personal phone numbers and email addresses, and
