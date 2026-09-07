@@ -64,4 +64,8 @@ export interface Summary {
   name: string
   title: string
   professionalSummary: string
+  /** File name of the downloadable resume, as it is published at the site
+   * root. The component joins it with `import.meta.env.BASE_URL` to build the
+   * href; the build emits the repo-root file under this same name. */
+  resumePdfFileName: string
 }

@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths:
       - site/**
+      # The build emits the repo-root PDF into dist/, so a regenerated resume
+      # would stay stale on Pages unless it triggers a deploy of its own.
+      - resume.pdf
       # Changes to the workflow itself exercise the deploy too, so a broken
       # edit here surfaces on its own push instead of on the next site change.
       - .github/workflows/deploy-pages.yml

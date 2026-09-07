@@ -56,9 +56,10 @@ site is mobile-friendly.
 ## Deployment
 
 `.github/workflows/deploy-pages.yml` builds `site/` and publishes it to GitHub
-Pages. It runs on every push to `main` that touches `site/**` (or the workflow
-file itself), and can also be started by hand from the Actions tab via
-`workflow_dispatch`. The build job runs `npm ci` then `npm run build` in
+Pages. It runs on every push to `main` that touches `site/**`, the repo-root
+`resume.pdf` (the build bundles it — see [The resume PDF](#the-resume-pdf)) or
+the workflow file itself, and can also be started by hand from the Actions tab
+via `workflow_dispatch`. The build job runs `npm ci` then `npm run build` in
 `site/`, uploads `site/dist` as the Pages artifact, and a separate `deploy`
 job publishes it — so a type error in `tsc -b` fails the build and nothing
 gets deployed.
@@ -78,6 +79,29 @@ blank page with a 200. A project page lives under `/resume/`, hence
 `base: '/resume/'`. If a custom domain is ever configured, the site is served
 from the domain root instead — change `base` to `'/'` in the same change that
 adds the domain.
+
+### The resume PDF
+
+The hero's "Download PDF" button serves the **repo-root `resume.pdf`**, and
+Pages publishes only `site/dist`, so the root file has to reach the bundle.
+It is **not copied into `site/public/`**: that would commit a second copy of
+the binary, which would silently go stale the next time the root one is
+regenerated. Instead `vite/resume-pdf.ts` is a small Vite plugin that reads
+the file from the repo root at build time and emits it into `dist/` under its
+own name, unhashed — one copy in git, one in `dist/`, no way for them to
+disagree. The same plugin serves those bytes from `npm run dev`, so the
+button works during the manual checks too.
+
+The href is built as `import.meta.env.BASE_URL + summary.resumePdfFileName`,
+not hand-written: the site is served from `/resume/`, where a literal
+`/resume.pdf` would 404. `resumePdfFileName` is the one name shared by the
+plugin's emitted asset and the link, so the two cannot drift.
+
+Because the PDF is an input to the build rather than a file under `site/`,
+`deploy-pages.yml` also triggers on pushes to `main` that touch `resume.pdf`
+— otherwise a regenerated resume would sit in git while Pages kept serving
+the old bytes. `test/resume-pdf.test.ts` covers the plugin and
+`test/deploy-pages.test.ts` the trigger.
 
 ## Content data model
 
@@ -109,6 +133,7 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 | Piece                             | Responsibility                                                                       |
 | --------------------------------- | ------------------------------------------------------------------------------------ |
 | `src/components/Header.tsx`       | Sticky bar: wordmark, inline section nav from `md` up, menu button + full-screen panel below it |
+| `src/components/HeroSection.tsx`  | The About section's content: name (the page's one `<h1>`), title, location, professional summary and the three CTAs |
 | `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
 | `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
 | `src/data/sections.ts`            | The section registry: the single source of both the nav entries and the section ids   |
@@ -122,9 +147,14 @@ of links, so a nav link can never point at an id the page does not render.
 `src/App.test.tsx` asserts exactly that: every same-page href resolves to an
 element that exists in the document.
 
-The sections `App.tsx` renders today are **placeholders** ("Coming soon.").
-Each is filled in by its own change; what the shell owns is the structure —
-exactly one `banner`, one `main` and one `contentinfo` landmark.
+**About is filled in — by `HeroSection`; every other section is still a
+placeholder** ("Coming soon."). `App.tsx` maps the registry as before and
+swaps the placeholder body for the hero on `section.id === 'about'`, so the
+`<section id aria-labelledby>` wrapper (and with it the nav anchor and the
+scroll offset) is the registry's in both cases. Each remaining section is
+filled in by its own change, extending that same branch; what the shell owns
+either way is the structure — exactly one `banner`, one `main` and one
+`contentinfo` landmark, and exactly one `<h1>`, which is the hero's name.
 
 The **theme toggle lives in the header bar** at both widths, next to the menu
 button, rather than being duplicated into the mobile panel — one toggle in the
@@ -265,6 +295,21 @@ devtools responsive mode:
       header bar and footer aligned to the same width.
 - [ ] Footer contact links stack (or wrap) rather than overflowing at 320px
       and 375px.
+- [ ] **Hero at 375px** — name, title, location, summary and the three CTAs
+      read as one column, aligned consistently with each other, with no
+      horizontal scrollbar (same `scrollWidth === clientWidth` check) and the
+      professional summary wrapping over as many lines as it needs rather than
+      being clipped or truncated.
+- [ ] **Hero CTAs at 375px** — the three buttons are full-width and stacked,
+      each at least 44px tall (inspect one: its box height in devtools is
+      ≥ 44), with visible space between them.
+- [ ] **Hero at 768px and at 1440px** — the CTAs have moved into a row and sit
+      inside the `max-w-5xl` column with nothing clipped, overlapping or
+      pushed past the column's right edge.
+- [ ] **Hero links work**: "Download PDF" downloads the file under
+      `npm run dev` (the dev server serves the repo-root PDF — see
+      [The resume PDF](#the-resume-pdf)), and the GitHub button opens the
+      profile in a new tab.
 - [ ] **Mobile menu, keyboard only** at 375px: Tab to the menu button, open it
       with Enter, Tab through the links and confirm focus stays inside the
       panel and cycles, press Escape and confirm the panel closes and focus

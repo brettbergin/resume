@@ -3,14 +3,16 @@
  * header (with the theme toggle in its bar), one anchored <section> per entry
  * of the section registry, and the footer.
  *
- * The sections here are placeholders on purpose — each one is filled in by its
- * own change. What this file owns is the *shell*: exactly one banner, one
- * <main> and one contentinfo, and the guarantee that every nav href has a
- * matching id on the page, because both come from `sections`.
+ * Sections are filled in one at a time by their own change, and the ones that
+ * have not had theirs yet are placeholders. What this file owns is the
+ * *shell*: exactly one banner, one <main> and one contentinfo, and the
+ * guarantee that every nav href has a matching id on the page, because both
+ * come from `sections`.
  */
 
 import { Footer } from './components/Footer.tsx'
 import { Header } from './components/Header.tsx'
+import { HeroSection } from './components/HeroSection.tsx'
 import { ThemeToggle } from './components/ThemeToggle.tsx'
 import { sections } from './data/sections.ts'
 
@@ -49,10 +51,24 @@ function App() {
             aria-labelledby={`${section.id}-heading`}
             className="py-8 first:pt-0"
           >
-            <h2 id={`${section.id}-heading`} className="text-2xl font-medium">
-              {section.label}
-            </h2>
-            <p className="mt-2 text-base text-muted">Coming soon.</p>
+            {/* One branch per filled-in section, and the wrapper above stays
+                the registry's either way — it owns the anchor id the nav and
+                the scroll offset depend on. The section that has its content
+                renders the heading the wrapper is labelled by; the rest keep
+                the placeholder. */}
+            {section.id === 'about' ? (
+              <HeroSection headingId={`${section.id}-heading`} />
+            ) : (
+              <>
+                <h2
+                  id={`${section.id}-heading`}
+                  className="text-2xl font-medium"
+                >
+                  {section.label}
+                </h2>
+                <p className="mt-2 text-base text-muted">Coming soon.</p>
+              </>
+            )}
           </section>
         ))}
       </main>

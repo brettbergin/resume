@@ -30,6 +30,7 @@ export const summary: Summary = {
   title: 'Senior Application Security Engineer',
   professionalSummary:
     'Senior application security engineer with 10+ years developing and operationalizing comprehensive security programs for enterprise organizations. Proven expertise in vulnerability management, penetration testing, security automation, and DevSecOps at scale. Strong technical background in cloud security, risk assessment, security architecture, and distributed systems with a track record of implementing Zero Trust security solutions supporting millions of users. Experienced in compliance frameworks including GDPR, SOX, and PCI-DSS. Active developer of AI-powered security tools and Model Context Protocol (MCP) servers for enhanced productivity in red team operations, network security monitoring, and security automation workflows.',
+  resumePdfFileName: 'resume.pdf',
 }
 
 export const achievements: Achievement[] = [
