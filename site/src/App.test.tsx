@@ -8,6 +8,7 @@ import {
   competencies,
   contact,
   experiences,
+  projects,
   summary,
   technicalSkills,
 } from './data/resume.ts'
@@ -33,6 +34,7 @@ const FILLED_SECTION_IDS: string[] = [
   'about',
   'skills',
   'experience',
+  'projects',
   'achievements',
 ]
 
@@ -287,6 +289,82 @@ describe('App experience section', () => {
 
     expect(roles.map((role) => role.textContent)).toEqual(
       experiences.map((role) => role.title),
+    )
+  })
+})
+
+/*
+ * And the project cards: the card treatment, the grid and the new-tab rel are
+ * asserted next to ProjectsSection/ProjectCard, so the shell's part is what is
+ * checked here — that the section is filled rather than a placeholder, that the
+ * heading its wrapper is labelled by is the registry's label, and that every
+ * project in the data module reaches the page as a link to its own repo.
+ */
+describe('App projects section', () => {
+  /** Scoped: the nav and the placeholder assertions also mention "Projects",
+   * and the hero and footer carry GitHub links of their own. */
+  function projectsSection() {
+    return document.getElementById('projects')!
+  }
+
+  const projectsLabel = sections.find(
+    (section) => section.id === 'projects',
+  )!.label
+
+  it('fills the projects section instead of a placeholder', () => {
+    render(<App />)
+
+    const scope = within(projectsSection())
+
+    expect(scope.queryByText('Coming soon.')).toBeNull()
+    for (const project of projects) {
+      expect(scope.getByText(project.name)).toBeDefined()
+    }
+  })
+
+  it('labels the section by the heading the projects section renders', () => {
+    render(<App />)
+
+    const labelledBy = projectsSection().getAttribute('aria-labelledby')!
+    const heading = document.getElementById(labelledBy)
+
+    expect(heading).not.toBeNull()
+    expect(projectsSection().contains(heading)).toBe(true)
+    expect(heading!.textContent).toBe(projectsLabel)
+  })
+
+  it('keeps one section heading at level 2 and no competing h1', () => {
+    render(<App />)
+
+    const scope = within(projectsSection())
+    const headings = scope.getAllByRole('heading', { level: 2 })
+
+    expect(headings).toHaveLength(1)
+    expect(headings[0].textContent).toBe(projectsLabel)
+    expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
+  })
+
+  it('resolves the nav’s #projects href to the rendered section', () => {
+    render(<App />)
+
+    const navLinks = fragmentLinks().filter(
+      (link) => link.getAttribute('href') === '#projects',
+    )
+
+    expect(navLinks).not.toHaveLength(0)
+    expectTargetsExist(navLinks)
+    expect(document.getElementById('projects')).toBe(projectsSection())
+  })
+
+  it('renders one link per project, pointing at its repo', () => {
+    render(<App />)
+
+    const links = within(projectsSection()).getAllByRole(
+      'link',
+    ) as HTMLAnchorElement[]
+
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(
+      projects.map((project) => project.url),
     )
   })
 })
