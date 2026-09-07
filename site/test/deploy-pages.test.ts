@@ -75,6 +75,12 @@ describe('Pages deploy workflow triggers', () => {
     )
   })
 
+  it('runs on pushes that regenerate the root resume.pdf', () => {
+    // The build emits the root PDF into dist/, so without this trigger a new
+    // resume would sit unpublished until the next site change.
+    expect(workflow.on?.push?.paths).toContain('resume.pdf')
+  })
+
   it('can be re-run by hand', () => {
     expect(workflow.on).toHaveProperty('workflow_dispatch')
   })

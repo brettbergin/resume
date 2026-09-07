@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App.tsx'
+import { contact, summary } from './data/resume.ts'
 import { sections } from './data/sections.ts'
 
 /*
@@ -18,6 +19,10 @@ import { sections } from './data/sections.ts'
  * nav and the mobile panel are visible to queries here — the panel is opened
  * explicitly where its links are the subject.
  */
+
+/** Registry entries whose content has been built; the rest still render the
+ * label-plus-"Coming soon." placeholder. Extend as sections land. */
+const FILLED_SECTION_IDS: string[] = ['about']
 
 /** Every same-page anchor in the document: the skip link plus both navs. */
 function fragmentLinks(): HTMLAnchorElement[] {
@@ -78,7 +83,7 @@ describe('App landmarks', () => {
 })
 
 describe('App sections', () => {
-  it('renders one placeholder section per registry entry, in order', () => {
+  it('renders one section per registry entry, in order', () => {
     render(<App />)
 
     const rendered = Array.from(
@@ -88,12 +93,78 @@ describe('App sections', () => {
     expect(rendered.map((section) => section.id)).toEqual(
       sections.map((section) => section.id),
     )
-    for (const section of sections) {
+  })
+
+  it('still renders the registry label as the heading of every placeholder', () => {
+    render(<App />)
+
+    const placeholders = sections.filter(
+      (section) => !FILLED_SECTION_IDS.includes(section.id),
+    )
+
+    expect(placeholders).not.toHaveLength(0)
+    for (const section of placeholders) {
       const element = document.getElementById(section.id)!
       expect(within(element).getByRole('heading').textContent).toBe(
         section.label,
       )
+      expect(within(element).getByText('Coming soon.')).toBeDefined()
     }
+  })
+})
+
+/*
+ * The hero is unit-tested next to the component; asserted here is only what
+ * the shell is responsible for — that it is mounted in the right section, and
+ * that plugging an <h1> into a `aria-labelledby` wrapper left the document
+ * with one top-level heading pointing at the right place.
+ */
+describe('App about section', () => {
+  /** Scoped: the footer also has links named "GitHub" and "Email". */
+  function about() {
+    return document.getElementById('about')!
+  }
+
+  it('fills the about section with the hero instead of a placeholder', () => {
+    render(<App />)
+
+    expect(within(about()).getByText(summary.professionalSummary)).toBeDefined()
+    expect(within(about()).queryByText('Coming soon.')).toBeNull()
+  })
+
+  it('has exactly one h1, holding the name, inside #about', () => {
+    render(<App />)
+
+    const headings = screen.getAllByRole('heading', { level: 1 })
+
+    expect(headings).toHaveLength(1)
+    expect(headings[0].textContent).toBe(summary.name)
+    expect(about().contains(headings[0])).toBe(true)
+  })
+
+  it('labels the section by the heading the hero renders', () => {
+    render(<App />)
+
+    const labelledBy = about().getAttribute('aria-labelledby')!
+    const heading = document.getElementById(labelledBy)
+
+    expect(heading).toBe(screen.getByRole('heading', { level: 1 }))
+  })
+
+  it('points the hero CTAs at the PDF, the GitHub profile and the email', () => {
+    render(<App />)
+
+    const scope = within(about())
+
+    expect(
+      scope.getByRole('link', { name: /download pdf/i }).getAttribute('href'),
+    ).toBe(`${import.meta.env.BASE_URL}${summary.resumePdfFileName}`)
+    expect(
+      scope.getByRole('link', { name: 'GitHub' }).getAttribute('href'),
+    ).toBe(contact.githubUrl)
+    expect(
+      scope.getByRole('link', { name: 'Email' }).getAttribute('href'),
+    ).toBe(`mailto:${contact.email}`)
   })
 })
 
