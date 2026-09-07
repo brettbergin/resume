@@ -50,6 +50,15 @@ export interface Project {
   url: string
 }
 
+/** One anchored section of the page, as listed in `sections.ts`. */
+export interface PageSection {
+  /** The DOM id of the section, and the anchor fragment the nav links to.
+   * Kebab-case, with no leading `#`. */
+  id: string
+  /** The nav text for the section. */
+  label: string
+}
+
 /** Identity and the professional summary paragraph. */
 export interface Summary {
   name: string

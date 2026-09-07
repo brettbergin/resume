@@ -54,6 +54,50 @@ other, not generated from one another, so **content changes must update both
 files together.** The `References` section of `resume.md` is deliberately not
 modelled — see the comment at the top of `resume.ts`.
 
+## Layout shell
+
+`src/App.tsx` is the shell every content section renders inside. It renders,
+in order: the skip link, `<Header>`, a single `<main id="main">`, and
+`<Footer>`. The page is a `flex min-h-svh flex-col` column on `bg-bg
+text-text`, and `<main>` is an `mx-auto w-full max-w-5xl` container.
+
+All three columns — the header bar, `<main>` and the footer — are
+`max-w-5xl px-4 md:px-8`, so their left and right edges land on the same
+pixels at every width. Horizontal padding is written out separately from the
+vertical step (`px-4 md:px-8` rather than `p-4 md:p-8`) precisely so it can be
+kept identical across the three; `test/layout-contract.test.ts` asserts it.
+
+| Piece                             | Responsibility                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| `src/components/Header.tsx`       | Sticky bar: wordmark, inline section nav from `md` up, menu button + full-screen panel below it |
+| `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
+| `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
+| `src/data/sections.ts`            | The section registry: the single source of both the nav entries and the section ids   |
+
+**The section registry is the single source of truth for navigation.**
+`sections` is a list of `{ id, label }`; the header maps over it for its links
+(one `href="#<id>"` each), and `App.tsx` maps over the same list to render one
+`<section id={id}>` per entry with `label` as its heading. Adding a section is
+therefore one entry in `sections.ts` — there is no second, hand-written list
+of links, so a nav link can never point at an id the page does not render.
+`src/App.test.tsx` asserts exactly that: every same-page href resolves to an
+element that exists in the document.
+
+The sections `App.tsx` renders today are **placeholders** ("Coming soon.").
+Each is filled in by its own change; what the shell owns is the structure —
+exactly one `banner`, one `main` and one `contentinfo` landmark.
+
+The **theme toggle lives in the header bar** at both widths, next to the menu
+button, rather than being duplicated into the mobile panel — one toggle in the
+document, reachable at 375px and at 1440px alike.
+
+The **skip link** ("Skip to content", `href="#main"`) is the first focusable
+element in the document and is `sr-only` until focused, at which point it
+becomes a visible pill in the top-left. A sticky header with a nav in front of
+the content would otherwise cost a keyboard user a tab through every nav link
+before reaching the page; `scroll-margin-top` on `section[id]` (see
+`index.css`) keeps the header from covering whatever the anchor jumped to.
+
 ## Styling: Tailwind CSS v4, CSS-first
 
 Tailwind is wired in through the `@tailwindcss/vite` plugin (see
@@ -105,10 +149,31 @@ applyTheme('dark')
 ```
 
 `src/theme.ts` is the seam for theming. `applyInitialTheme()`, called from
-`src/main.tsx` before the first render, applies whatever
-`prefers-color-scheme` reports. It deliberately has no persistence and no
-switcher UI — those land with the later theming issue, which extends this
-module rather than replacing it.
+`src/main.tsx` before the first render, applies the user's stored choice if
+there is one and whatever `prefers-color-scheme` reports otherwise.
+
+**No flash of the wrong palette takes a second copy of that logic.**
+`src/main.tsx` is a module script and module scripts are deferred, so the
+browser may paint the parsed document — white, since light is the CSS default
+and `dark` is only ever added by JS — before the bundle runs. `index.html`
+therefore carries a small render-blocking inline script in `<head>` that reads
+the same `resume-theme` key, falls back to the same media query, and adds the
+`dark` class before the first paint. It duplicates `getInitialTheme()` because
+it cannot import; `test/index-html.test.ts` asserts the key and the query
+still match `theme.ts`.
+
+`setTheme()` is the only writer of storage, under the **namespaced** key
+`resume-theme`: every GitHub Pages project page shares the
+`brettbergin.github.io` origin, so a bare `theme` key would collide with the
+owner's other project sites. Nothing is written until the user actually
+toggles, and while nothing is stored the site follows live OS changes
+(`watchPreferredTheme`); once a choice is stored it wins. Every localStorage
+access is wrapped in try/catch — Safari in private mode throws on the
+property access itself — and a stored value that is not exactly `light` or
+`dark` is treated as absent.
+
+`src/components/ThemeToggle.tsx` is the user-facing switch: one `<button>`
+with `aria-pressed` and a state-reflecting `aria-label`, calling `setTheme`.
 
 ## Mobile-first contract
 
@@ -118,21 +183,67 @@ module rather than replacing it.
 - Base body size is `1rem` (16px). Nothing in `src/` may declare a
   `font-size` below that — smaller text makes mobile Safari auto-zoom.
 - Size layout with `w-full`, `max-w-*`, `mx-auto` and responsive padding
-  (`p-4 md:p-8`). No fixed or minimum pixel widths, and no
+  (`px-4 md:px-8`). No width or minimum width pinned in pixels, and no
   `overflow-x-hidden` to hide a layout that overflows anyway.
+- Tap targets are at least 44x44 (`min-h-11 min-w-11`) with at least 8px
+  between them (`gap-2` or more) — 44px targets 4px apart mis-tap on a phone.
 
-### Manual check: 375px, no horizontal scroll
+`test/layout-contract.test.ts` enforces those over `src/App.tsx` and
+`src/components/*`: it fails on an arbitrary width or minimum width given in
+pixels, on `overflow-x-hidden`, on an arbitrary font size below `1rem`, on a
+gap under `gap-2`, and on a content column whose horizontal padding differs
+from the other two. It reads the source rather than a rendered tree because
+jsdom has no layout engine: it reports every width as 0 and applies no
+Tailwind stylesheet, so a rendered assertion would pass whatever the page
+actually does. That file deliberately never writes an arbitrary class name out
+in full, not even in a comment — Tailwind v4 scans it like any other source,
+so a literal example there would be emitted into the shipped CSS. The widths
+below therefore stay a manual check.
+
+Below `md` the header collapses to the menu button, and **crossing back up to
+`md` closes the menu**: the panel, the button and the body scroll lock are all
+`md:hidden`, so a menu left open into desktop width would leave the page
+scroll-locked with nothing visible to click. `Header.tsx` watches
+`(min-width: 48rem)` for exactly that (a fold opening or a tablet rotating
+crosses it in one gesture); `Header.test.tsx` covers it.
+
+### Manual check: widths, mobile menu, theme persistence
 
 Layout can't be asserted in CI (there's no browser in the build sandbox), so
-verify this by hand when changing the layout:
+walk this list by hand when changing the shell. `npm run dev`, then in
+devtools responsive mode:
 
-1. `npm run dev`, open the site, and enter devtools responsive mode at
-   **375 × 667** (iPhone SE).
-2. Confirm there is no horizontal scrollbar and that the console reports
-   equal values for:
-   ```js
-   document.documentElement.scrollWidth === document.documentElement.clientWidth
-   ```
-3. Repeat with the dark palette applied
-   (`document.documentElement.classList.add('dark')`) — both palettes must
-   pass.
+- [ ] **320px** (smallest supported) — no horizontal scrollbar, and the
+      console reports equal values for:
+      ```js
+      document.documentElement.scrollWidth === document.documentElement.clientWidth
+      ```
+- [ ] **375 × 667** (iPhone SE) — same check; the header is collapsed to the
+      menu button and still leaves most of the viewport to content.
+- [ ] **768px** (the `md` breakpoint) — the inline nav has taken over from the
+      menu button, with nothing overlapping or clipped.
+- [ ] **1440px** — content stays in its `max-w-5xl` column, centred, with the
+      header bar and footer aligned to the same width.
+- [ ] Footer contact links stack (or wrap) rather than overflowing at 320px
+      and 375px.
+- [ ] **Mobile menu, keyboard only** at 375px: Tab to the menu button, open it
+      with Enter, Tab through the links and confirm focus stays inside the
+      panel and cycles, press Escape and confirm the panel closes and focus
+      returns to the menu button. Then reopen it and follow a link with Enter
+      — the panel closes and the target section is in view below the header.
+- [ ] **Menu across the breakpoint**: at 375px open the menu, then drag the
+      window wider than 768px. The menu closes, the inline nav takes over,
+      and the page scrolls (`document.body.style.overflow` is back to what it
+      was). Drag back under 768px and confirm the menu still opens.
+- [ ] With the menu open at 375px, the theme toggle in the bar is behind the
+      full-screen panel — expected; close the menu and it is right there.
+      (jsdom has no stacking context, so this one cannot be asserted in CI.)
+- [ ] Tab from the very top of the page: the first stop is the "Skip to
+      content" link, which is visible while focused and jumps to `<main>`.
+- [ ] **Theme persistence**: toggle to the other theme, reload the page, and
+      confirm it comes up in the chosen theme with no flash of the other
+      palette. Clear the `resume-theme` key in devtools > Application >
+      Local Storage, reload, and confirm it follows the OS preference again.
+- [ ] Repeat the width checks with the dark palette applied
+      (`document.documentElement.classList.add('dark')`) — both palettes must
+      pass.

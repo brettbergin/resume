@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -11,4 +11,13 @@ export default defineConfig({
   // If a custom domain is ever configured, this becomes '/'.
   base: '/resume/',
   plugins: [react(), tailwindcss()],
+  test: {
+    // Components need a DOM; the node-environment suites (data checks, the
+    // deploy workflow check that reads files with node:fs) run fine in jsdom
+    // too, so one environment covers the whole suite.
+    environment: 'jsdom',
+    // Tests import describe/it/expect from 'vitest' explicitly.
+    globals: false,
+    setupFiles: ['./src/test/setup.ts'],
+  },
 })

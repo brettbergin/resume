@@ -64,6 +64,27 @@
 @layer base {
   :root {
     color-scheme: light;
+    /* Used only by the anchor offset below, and deliberately generous: the
+       header is 3.5rem tall on mobile and 4rem from `md` up (`h-14 md:h-16`
+       in Header.tsx), so 4rem clears the taller of the two and over-shoots
+       harmlessly on the shorter one. The component sizes itself; this is not
+       read by it. */
+    --header-height: 4rem;
+    /* Nav links are same-page anchors, so animate the jump. */
+    scroll-behavior: smooth;
+  }
+
+  /* Respect a reduced-motion preference: jump straight to the section. */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      scroll-behavior: auto;
+    }
+  }
+
+  /* Anchor targets stop below the sticky header instead of underneath it —
+     the header height plus a little breathing room above the heading. */
+  section[id] {
+    scroll-margin-top: calc(var(--header-height) + 1rem);
   }
 
   .dark {

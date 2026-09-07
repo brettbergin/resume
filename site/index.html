@@ -5,6 +5,35 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>site</title>
+    <!--
+      Theme applied before the first paint. Inline and render-blocking on
+      purpose: the app bundle is a module script and therefore deferred, so
+      applying the theme from JS alone paints the light palette (the CSS
+      default) first and flashes it at everyone who stored `dark`.
+
+      Mirrors getInitialTheme() in src/theme.ts — a valid stored choice wins,
+      anything else falls back to the OS preference — and swallows the
+      localStorage access that Safari's private mode throws on.
+      test/index-html.test.ts keeps the key and the query in step with
+      theme.ts.
+    -->
+    <script>
+      (function () {
+        var stored = null
+        try {
+          stored = window.localStorage.getItem('resume-theme')
+        } catch (error) {
+          // Storage unavailable; fall through to the OS preference.
+        }
+        if (
+          stored === 'dark' ||
+          (stored !== 'light' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches)
+        ) {
+          document.documentElement.classList.add('dark')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
