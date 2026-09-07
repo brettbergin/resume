@@ -1,0 +1,364 @@
+import { act, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { summary } from '../data/resume.ts'
+import { sections } from '../data/sections.ts'
+import { Header } from './Header.tsx'
+
+/*
+ * The mobile menu is hand-rolled, so everything a browser would normally give
+ * a <dialog> — focus in on open, Tab containment, Escape to dismiss, a frozen
+ * background — is this component's own code and is covered here.
+ *
+ * jsdom applies no stylesheet, so `hidden md:flex` does not actually hide the
+ * inline nav in these tests. Queries are therefore scoped to a named <nav> or
+ * to the open dialog rather than run against the whole document.
+ */
+
+/** The panel's focusables, in DOM order: the close button, then the links. */
+function focusablesIn(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
+  )
+}
+
+function menuButton() {
+  return screen.getByRole('button', { name: /menu/i })
+}
+
+async function openMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(menuButton())
+  return screen.getByRole('dialog')
+}
+
+type Listener = (event: MediaQueryListEvent) => void
+
+/**
+ * A controllable stand-in for the `md` media query the header watches. jsdom
+ * parses media queries but never re-evaluates them and never fires `change`,
+ * so a viewport crossing the breakpoint — a phone unfolding, a tablet
+ * rotating — has to be simulated. The query is driven from the outside, never
+ * through the component, so these assertions hold however the header decides
+ * to observe the width.
+ */
+function mockViewport(initiallyWide: boolean) {
+  let matches = initiallyWide
+  const listeners = new Set<Listener>()
+
+  const query = {
+    media: '(min-width: 48rem)',
+    get matches() {
+      return matches
+    },
+    addEventListener(_type: 'change', listener: Listener) {
+      listeners.add(listener)
+    },
+    removeEventListener(_type: 'change', listener: Listener) {
+      listeners.delete(listener)
+    },
+  }
+
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => query),
+  )
+
+  return {
+    listenerCount: () => listeners.size,
+    /** Cross the breakpoint: `wide` true is >= 768px, false is below it. */
+    resize(wide: boolean) {
+      matches = wide
+      act(() => {
+        for (const listener of [...listeners]) {
+          listener({ matches } as MediaQueryListEvent)
+        }
+      })
+    },
+  }
+}
+
+/* jsdom implements no `matchMedia` at all, so every test needs one before the
+ * header can mount. The default is a narrow viewport — the state the mobile
+ * menu exists for; the tests that care about the breakpoint install their own
+ * over the top. */
+beforeEach(() => {
+  mockViewport(false)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  document.body.style.overflow = ''
+})
+
+describe('Header', () => {
+  it('renders the wordmark from the resume data', () => {
+    render(<Header />)
+
+    expect(screen.getByText(summary.name)).toBeDefined()
+  })
+
+  it('renders one inline nav link per section, linking to its id', () => {
+    render(<Header />)
+
+    const nav = screen.getByRole('navigation', { name: 'Primary' })
+    const links = within(nav).getAllByRole('link')
+
+    expect(links).toHaveLength(sections.length)
+    expect(links.map((link) => link.textContent)).toEqual(
+      sections.map((section) => section.label),
+    )
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(
+      sections.map((section) => `#${section.id}`),
+    )
+  })
+
+  it('renders the same section links inside the mobile menu', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    const dialog = await openMenu(user)
+    const links = within(dialog).getAllByRole('link')
+
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(
+      sections.map((section) => `#${section.id}`),
+    )
+  })
+
+  it('renders children in the bar, outside the mobile panel', async () => {
+    const user = userEvent.setup()
+    render(
+      <Header>
+        <button type="button">Toggle theme</button>
+      </Header>,
+    )
+
+    const slotted = screen.getByRole('button', { name: 'Toggle theme' })
+    // In the bar itself, so there is one toggle in the document rather than a
+    // second copy inside the panel.
+    expect(slotted.closest('[role="dialog"]')).toBeNull()
+
+    // Opening the panel does not re-render it elsewhere or duplicate it.
+    // Whether it is *visible* under the open panel is a stacking question
+    // jsdom cannot answer (no stylesheet, no layout) — it stays a manual
+    // check; see README.
+    await openMenu(user)
+    expect(screen.getByRole('button', { name: 'Toggle theme' })).toBe(slotted)
+    expect(screen.getAllByRole('button', { name: 'Toggle theme' })).toHaveLength(
+      1,
+    )
+  })
+
+  it('starts collapsed and expands on click', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    const button = menuButton()
+    expect(button.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    const dialog = await openMenu(user)
+
+    expect(button.getAttribute('aria-expanded')).toBe('true')
+    expect(button.getAttribute('aria-controls')).toBe(dialog.id)
+  })
+
+  it('moves focus into the menu when it opens', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    const dialog = await openMenu(user)
+
+    expect(dialog.contains(document.activeElement)).toBe(true)
+  })
+
+  it('wraps Tab from the last focusable element back to the first', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    const dialog = await openMenu(user)
+    const focusables = focusablesIn(dialog)
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+
+    last.focus()
+    await user.tab()
+
+    expect(document.activeElement).toBe(first)
+  })
+
+  it('wraps Shift+Tab from the first focusable element back to the last', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    const dialog = await openMenu(user)
+    const focusables = focusablesIn(dialog)
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+
+    first.focus()
+    await user.tab({ shift: true })
+
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('keeps focus inside the menu across a full cycle of tabs', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    const dialog = await openMenu(user)
+
+    for (let i = 0; i <= focusablesIn(dialog).length; i += 1) {
+      await user.tab()
+      expect(dialog.contains(document.activeElement)).toBe(true)
+    }
+  })
+
+  it('closes on Escape and returns focus to the menu button', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    await openMenu(user)
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(menuButton())
+  })
+
+  it('closes when a nav link in the menu is selected', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    const dialog = await openMenu(user)
+    await user.click(within(dialog).getByRole('link', { name: sections[0].label }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('locks background scrolling while open and restores it on close', async () => {
+    const user = userEvent.setup()
+    document.body.style.overflow = 'auto'
+    render(<Header />)
+
+    await openMenu(user)
+    expect(document.body.style.overflow).toBe('hidden')
+
+    await user.keyboard('{Escape}')
+    expect(document.body.style.overflow).toBe('auto')
+
+    document.body.style.overflow = ''
+  })
+
+  it('restores background scrolling when unmounted while open', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<Header />)
+
+    await openMenu(user)
+    expect(document.body.style.overflow).toBe('hidden')
+
+    unmount()
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  /*
+   * Everything the open state controls is behind `md:hidden`, so an open menu
+   * that survives into desktop width leaves the page scroll-locked with no
+   * visible control to clear it. These cover the breakpoint reconciliation
+   * that prevents it.
+   */
+  it('watches the md breakpoint at 48rem, matching its md: classes', () => {
+    mockViewport(false)
+    render(<Header />)
+
+    expect(window.matchMedia).toHaveBeenCalledWith('(min-width: 48rem)')
+  })
+
+  it('closes the menu and unlocks scrolling when the viewport reaches md', async () => {
+    const user = userEvent.setup()
+    const viewport = mockViewport(false)
+    document.body.style.overflow = 'auto'
+    render(<Header />)
+
+    await openMenu(user)
+    expect(document.body.style.overflow).toBe('hidden')
+
+    // The gesture: a fold opening or a tablet rotating past 768px, with the
+    // menu still up.
+    viewport.resize(true)
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false')
+    expect(document.body.style.overflow).toBe('auto')
+  })
+
+  it('reopens normally after the viewport goes back below md', async () => {
+    const user = userEvent.setup()
+    const viewport = mockViewport(false)
+    render(<Header />)
+
+    await openMenu(user)
+    viewport.resize(true)
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    // Folding back up must not leave the menu wedged shut.
+    viewport.resize(false)
+    await openMenu(user)
+
+    expect(menuButton().getAttribute('aria-expanded')).toBe('true')
+    expect(document.body.style.overflow).toBe('hidden')
+  })
+
+  it('leaves a closed menu closed when the viewport narrows below md', () => {
+    const viewport = mockViewport(true)
+    document.body.style.overflow = 'auto'
+    render(<Header />)
+
+    // Narrowing below `md` only puts the menu button back; it must not open
+    // the panel or lock the page on its own.
+    viewport.resize(false)
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false')
+    expect(document.body.style.overflow).toBe('auto')
+  })
+
+  it('removes its breakpoint listener on unmount', () => {
+    const viewport = mockViewport(false)
+    const { unmount } = render(<Header />)
+
+    expect(viewport.listenerCount()).toBeGreaterThan(0)
+
+    unmount()
+
+    expect(viewport.listenerCount()).toBe(0)
+  })
+
+  it('omits aria-controls while the panel is not rendered', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    const button = menuButton()
+    expect(button.hasAttribute('aria-controls')).toBe(false)
+
+    const dialog = await openMenu(user)
+    expect(button.getAttribute('aria-controls')).toBe(dialog.id)
+
+    await user.keyboard('{Escape}')
+    expect(button.hasAttribute('aria-controls')).toBe(false)
+  })
+
+  it('keeps at least 8px between the tap targets in the bar', () => {
+    render(<Header />)
+
+    // 44x44 targets sitting 4px apart are adjacent enough to mis-tap on a
+    // phone; `gap-2` is 0.5rem.
+    const group = menuButton().parentElement
+    const gaps = group?.className
+      .split(/\s+/)
+      .filter((name) => name.startsWith('gap-'))
+
+    expect(gaps).toEqual(['gap-2'])
+  })
+})
