@@ -6,13 +6,52 @@ Vite + React + TypeScript front end for the resume, styled with Tailwind CSS v4.
 
 Run from `site/`:
 
-| Command           | What it does                                              |
-| ----------------- | --------------------------------------------------------- |
-| `npm run dev`     | Vite dev server with HMR                                  |
-| `npm run build`   | Type-checks with `tsc -b`, then builds to `dist/`         |
-| `npm run lint`    | Oxlint over the project                                   |
-| `npm run preview` | Serves the built `dist/` for a production-like smoke test |
-| `npm test`        | Vitest once, no watch                                     |
+| Command             | What it does                                              |
+| ------------------- | --------------------------------------------------------- |
+| `npm run dev`       | Vite dev server with HMR                                  |
+| `npm run build`     | Type-checks with `tsc -b`, then builds to `dist/`         |
+| `npm run typecheck` | Type-checks the whole solution with `tsc -b --noEmit`, emitting nothing |
+| `npm run lint`      | Oxlint over the project — reports warnings, exits 0 on them (CI adds `--deny-warnings`) |
+| `npm run preview`   | Serves the built `dist/` for a production-like smoke test |
+| `npm test`          | Vitest once, no watch                                     |
+
+## Continuous integration
+
+`.github/workflows/ci.yml` is the pull-request gate. It runs on every pull
+request that touches `site/**` (or the workflow file itself) and runs `npm ci`
+in `site/`, then `npm run lint -- --deny-warnings`, `npm run typecheck` and
+`npm run build` as three separate steps — so any one of a lint problem, a type
+error or a build failure fails the check on its own, and the annotation points
+at the step that actually broke.
+
+**CI lints stricter than the bare script does.** Oxlint reports its default
+(correctness) rules — `no-debugger`, `no-unused-vars` and the rest — at
+*warning* severity and still exits 0, so `npm run lint` on its own is
+advisory: it prints the problems and succeeds. Only
+`.oxlintrc.json`'s `react/rules-of-hooks` is an error locally. The `Lint` step
+therefore passes `--deny-warnings`, which makes every warning fail the check.
+So a locally green `npm run lint` that printed warnings will be red on the
+pull request — read its output, don't just read its exit code. Run
+`npm run lint -- --deny-warnings` before pushing to see what CI will see.
+`test/ci.test.ts` runs the step's command over fixtures with a warning-level
+and an error-level violation and asserts each one exits non-zero.
+
+CI and the Pages deploy are **two distinct workflows with non-overlapping
+triggers and permissions.** CI is `pull_request`-only and read-only
+(`contents: read`); it publishes nothing. `deploy-pages.yml` runs only on
+pushes to `main` (plus a manual `workflow_dispatch`) and holds the Pages write
+permissions. Neither one's triggers fire the other's job, so a pull request is
+never able to deploy and a merge is never gated a second time by CI.
+
+CI does **not** run the Vitest suite today — lint, type-check and build only.
+Run `npm test` locally before opening a pull request.
+
+**A green CI run says nothing about layout, viewport behaviour or
+accessibility.** There is no browser in the CI runner, so responsive and a11y
+behaviour is still verified by hand: see
+[Mobile-first contract](#mobile-first-contract) below for the checklist to
+walk. A passing check means the code lints, compiles and builds — not that the
+site is mobile-friendly.
 
 ## Deployment
 
