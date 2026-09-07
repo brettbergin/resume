@@ -134,6 +134,7 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 | --------------------------------- | ------------------------------------------------------------------------------------ |
 | `src/components/Header.tsx`       | Sticky bar: wordmark, inline section nav from `md` up, menu button + full-screen panel below it |
 | `src/components/HeroSection.tsx`  | The About section's content: name (the page's one `<h1>`), title, location, professional summary and the three CTAs |
+| `src/components/SkillsSection.tsx` | The Skills section's content: the core competencies and technical skill groups from `src/data/resume.ts`, each group a labelled cluster of chips in a responsive grid |
 | `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
 | `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
 | `src/data/sections.ts`            | The section registry: the single source of both the nav entries and the section ids   |
@@ -147,14 +148,27 @@ of links, so a nav link can never point at an id the page does not render.
 `src/App.test.tsx` asserts exactly that: every same-page href resolves to an
 element that exists in the document.
 
-**About is filled in — by `HeroSection`; every other section is still a
-placeholder** ("Coming soon."). `App.tsx` maps the registry as before and
-swaps the placeholder body for the hero on `section.id === 'about'`, so the
-`<section id aria-labelledby>` wrapper (and with it the nav anchor and the
-scroll offset) is the registry's in both cases. Each remaining section is
-filled in by its own change, extending that same branch; what the shell owns
-either way is the structure — exactly one `banner`, one `main` and one
-`contentinfo` landmark, and exactly one `<h1>`, which is the hero's name.
+**About and Skills are filled in — by `HeroSection` and `SkillsSection`; the
+remaining four registry entries (Experience, Projects, Achievements, Contact)
+are still placeholders** ("Coming soon."). `App.tsx` maps the registry as
+before and picks each section's body in one place: a `sectionBody(section)`
+helper switches on `section.id`, returning `<HeroSection>` for `about`,
+`<SkillsSection>` for `skills` and the placeholder heading + "Coming soon."
+for everything else. The `<section id aria-labelledby>` wrapper (and with it
+the nav anchor and the scroll offset) is the registry's in every case, and a
+filled-in section renders the heading that wrapper is labelled by, from the
+registry's own `label`, so the nav text and the on-page heading cannot drift.
+Each remaining section is filled in by its own change, adding a `case` to that
+same switch; what the shell owns either way is the structure — exactly one
+`banner`, one `main` and one `contentinfo` landmark, and exactly one `<h1>`,
+which is the hero's name.
+
+The skills grid is one column below `md`, two from `md` and three from `lg`,
+with each group's chips wrapping (`flex-wrap`) rather than being clipped —
+walk the `Skills at …` items in [Manual check](#manual-check-widths-mobile-menu-theme-persistence)
+below after touching it. Both palettes are covered by that list's existing
+"repeat the width checks with the dark palette" item; there is no separate
+dark-mode pass for this section.
 
 The **theme toggle lives in the header bar** at both widths, next to the menu
 button, rather than being duplicated into the mobile panel — one toggle in the
@@ -306,6 +320,21 @@ devtools responsive mode:
 - [ ] **Hero at 768px and at 1440px** — the CTAs have moved into a row and sit
       inside the `max-w-5xl` column with nothing clipped, overlapping or
       pushed past the column's right edge.
+- [ ] **Skills at 375px** — the skill groups read as a single column, each
+      group's chips wrapping onto as many lines as they need, nothing clipped
+      or truncated, and no horizontal scrollbar (same
+      `scrollWidth === clientWidth` check).
+- [ ] **Skills at 320px** — the longest group (`Specializations`) still wraps
+      inside its column rather than widening the page: no horizontal
+      scrollbar, and `scrollWidth === clientWidth` still holds.
+- [ ] **Skills at 768px** — the group grid has reflowed to two columns, with
+      nothing overlapping or clipped and no horizontal scrollbar.
+- [ ] **Skills at 1440px** — the grid is three columns inside the `max-w-5xl`
+      column, its outer edges aligned with the header bar and the footer.
+- [ ] **No proficiency bars, ratings or percentages** on any chip — the source
+      resume has none, so any such figure would be invented. Chips are plain
+      labels, and each has visible padding and spacing rather than running
+      together into one block of text.
 - [ ] **Hero links work**: "Download PDF" downloads the file under
       `npm run dev` (the dev server serves the repo-root PDF — see
       [The resume PDF](#the-resume-pdf)), and the GitHub button opens the
