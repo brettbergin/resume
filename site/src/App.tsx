@@ -10,6 +10,7 @@
  * come from `sections`.
  */
 
+import { AchievementsSection } from './components/AchievementsSection.tsx'
 import { ExperienceSection } from './components/ExperienceSection.tsx'
 import { Footer } from './components/Footer.tsx'
 import { Header } from './components/Header.tsx'
@@ -42,6 +43,10 @@ function sectionBody(section: PageSection) {
       return <SkillsSection headingId={headingId} heading={section.label} />
     case 'experience':
       return <ExperienceSection headingId={headingId} heading={section.label} />
+    case 'achievements':
+      return (
+        <AchievementsSection headingId={headingId} heading={section.label} />
+      )
     default:
       return (
         <>
