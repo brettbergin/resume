@@ -126,3 +126,15 @@ San Francisco, CA | mr.lance.harris@gmail.com
 
 **Steve Pace** | Senior Vice President, Global Sales | Core Security Technologies  
 Boston, MA | (626) 200-5124 | space@coresecurity.com 
+
+## Frontend
+
+The web frontend for this resume is a Vite + React + TypeScript app in [`site/`](site/).
+The plain-text and PDF resume at the repo root (`resume.md`, `resume.html`, `resume.pdf`) remains the source of truth for the content.
+
+```bash
+cd site
+npm install     # install dependencies
+npm run dev     # local dev server
+npm run build   # production build into site/dist
+```
