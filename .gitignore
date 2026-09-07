@@ -1,0 +1,7 @@
+# Frontend build artifacts and dependencies
+site/node_modules/
+site/dist/
+
+# OS and editor noise
+.DS_Store
+*.log
