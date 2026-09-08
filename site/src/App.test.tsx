@@ -268,7 +268,7 @@ describe('App experience section', () => {
     expect(heading!.textContent).toBe(experienceLabel)
   })
 
-  it('keeps one section heading at level 2, with the roles below it', () => {
+  it('keeps one section heading at level 2, with the roles below it', async () => {
     render(<App />)
 
     const scope = within(experience())
@@ -277,15 +277,29 @@ describe('App experience section', () => {
     expect(headings).toHaveLength(1)
     expect(headings[0].textContent).toBe(experienceLabel)
     expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
+
+    // The section-level toggle (ExperienceSection.test.tsx) leaves the older
+    // roles out of the DOM until expanded, so the full count — the "no role
+    // dropped" invariant this test exists to check — only holds once opened.
+    await userEvent.click(
+      scope.getByRole('button', { name: /earlier role/i }),
+    )
+
     expect(scope.getAllByRole('heading', { level: 3 })).toHaveLength(
       experiences.length,
     )
   })
 
-  it('renders the roles in the data module’s order inside #experience', () => {
+  it('renders the roles in the data module’s order inside #experience', async () => {
     render(<App />)
 
-    const roles = within(experience()).getAllByRole('heading', { level: 3 })
+    const scope = within(experience())
+
+    await userEvent.click(
+      scope.getByRole('button', { name: /earlier role/i }),
+    )
+
+    const roles = scope.getAllByRole('heading', { level: 3 })
 
     expect(roles.map((role) => role.textContent)).toEqual(
       experiences.map((role) => role.title),
