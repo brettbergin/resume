@@ -42,7 +42,7 @@ jobs:
       run:
         working-directory: site
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Same three patterns the old `on.pull_request.paths` filter used —
       # the build emits the repo-root PDF into dist/, so a pull request that
@@ -118,7 +118,7 @@ jobs:
       run:
         working-directory: site
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Same filter as `check`, so this job is also a fast no-op on a PR that
       # touches nothing relevant.
