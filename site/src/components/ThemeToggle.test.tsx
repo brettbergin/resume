@@ -177,6 +177,27 @@ describe('ThemeToggle', () => {
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
   })
 
+  it('follows a theme stored by another tab or window', () => {
+    mockPreferredTheme('light')
+    render(<ThemeToggle />)
+
+    const button = screen.getByRole('button')
+    expect(isDarkApplied()).toBe(false)
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: THEME_STORAGE_KEY,
+          newValue: 'dark',
+        }),
+      )
+    })
+
+    expect(isDarkApplied()).toBe(true)
+    expect(button.getAttribute('aria-pressed')).toBe('true')
+    expect(button.getAttribute('aria-label')).toBe('Switch to light theme')
+  })
+
   it('removes its media query listener on unmount', () => {
     const media = mockPreferredTheme('light')
     const { unmount } = render(<ThemeToggle />)

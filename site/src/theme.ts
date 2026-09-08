@@ -123,6 +123,29 @@ export function watchPreferredTheme(
 }
 
 /**
+ * Follow the theme as another tab or window writes it. The `storage` event
+ * only ever fires in tabs other than the one that made the write, so there is
+ * no origin-tab guard to apply here — unlike `watchPreferredTheme`, every
+ * report is a change to honour.
+ * Returns a cleanup that removes the listener — call it from the effect that
+ * installed the watcher so nothing is left attached after unmount.
+ */
+export function watchStoredTheme(
+  onChange: (theme: Theme) => void,
+): () => void {
+  function handleStorage(event: StorageEvent) {
+    if (event.key !== THEME_STORAGE_KEY) return
+    if (!isTheme(event.newValue)) return
+    onChange(event.newValue)
+  }
+
+  window.addEventListener('storage', handleStorage)
+  return () => {
+    window.removeEventListener('storage', handleStorage)
+  }
+}
+
+/**
  * Apply the stored choice, or the OS preference when there is none. Called
  * once from main.tsx before the first render, so a reload comes up in the
  * user's theme with no flash of the wrong palette. Reads storage; never
