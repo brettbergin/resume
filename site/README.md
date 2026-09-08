@@ -435,7 +435,7 @@ engine stays a person's check in
 | ---- | --------------- |
 | `src/a11y.test.tsx` | The page-wide contract over the tree `<App />` renders: exactly one `banner`, `navigation`, `main` and `contentinfo` landmark and exactly one `<h1>` (the hero's name); heading levels that never jump by more than one; the skip link being the first focusable element and targeting the `#main` landmark; a non-empty accessible name on every link and button; an `alt` attribute on every rendered `<img>` (plus a source sweep, since the page renders none today) and `aria-hidden` on every decorative `<svg>`; and a `focus-visible:outline-*` ring and a 44px `min-h-11` floor on every control — re-run with the mobile menu open, so the panel's links are held to the same rules |
 | `src/theme-contrast.test.ts` | Token parity and declared contrast over `src/index.css` read as text: every property `.dark` reassigns exists in `@theme` and every semantic `@theme` token is reassigned in `.dark`, so neither palette can fall back to an undefined value; and each semantic token resolved through the ramps to a hex, with the WCAG 2.x ratio computed per theme — 4.5:1 for text pairs (AA 1.4.3) and 3:1 for `--color-border-strong` (AA 1.4.11) |
-| `test/layout-contract.test.ts` | The source guards: no width or minimum width pinned in pixels, no `overflow-x-hidden`, no arbitrary font size below `1rem`, no gap under `gap-2`, the three content columns padded to the same edges, and no component declaring the focus ring itself instead of importing `FOCUS_RING` from `src/styles.ts` |
+| `test/layout-contract.test.ts` | The source guards: no width or minimum width pinned in pixels, no `overflow-x-hidden`, no arbitrary font size below `1rem`, no gap under `gap-2`, the three content columns padded to the same edges, no `<a>` or `<button>` missing the `min-h-11` 44px tap-target floor, and no component declaring the focus ring itself instead of importing `FOCUS_RING` from `src/styles.ts` |
 | `test/index-html.test.ts` | The document-level half a client-rendered page cannot assert from the React tree: the `lang` attribute on `<html>`, and that nothing focusable sits outside `#root` — which is what lets "first focusable element of the render" mean "first focusable element of the page" |
 
 `src/styles.ts` is why the per-control assertions are possible at all: the focus
@@ -501,8 +501,9 @@ checklist below and decide it by eye.
 `test/layout-contract.test.ts` enforces those over `src/App.tsx` and
 `src/components/*`: it fails on an arbitrary width or minimum width given in
 pixels, on `overflow-x-hidden`, on an arbitrary font size below `1rem`, on a
-gap under `gap-2`, and on a content column whose horizontal padding differs
-from the other two. It reads the source rather than a rendered tree because
+gap under `gap-2`, on a content column whose horizontal padding differs
+from the other two, and on an `<a>` or `<button>` that lacks the `min-h-11`
+44px tap-target floor. It reads the source rather than a rendered tree because
 jsdom has no layout engine: it reports every width as 0 and applies no
 Tailwind stylesheet, so a rendered assertion would pass whatever the page
 actually does. That file deliberately never writes an arbitrary class name out
