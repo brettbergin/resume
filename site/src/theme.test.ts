@@ -10,6 +10,7 @@ import {
   setTheme,
   THEME_STORAGE_KEY,
   watchPreferredTheme,
+  watchStoredTheme,
   type Theme,
 } from './theme.ts'
 
@@ -307,6 +308,59 @@ describe('watchPreferredTheme', () => {
     expect(media.listenerCount()).toBe(0)
 
     media.change('dark')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+})
+
+describe('watchStoredTheme', () => {
+  it('reports a valid theme written under the storage key', () => {
+    const onChange = vi.fn()
+    watchStoredTheme(onChange)
+
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: THEME_STORAGE_KEY, newValue: 'dark' }),
+    )
+
+    expect(onChange).toHaveBeenCalledWith('dark')
+  })
+
+  it('ignores events for an unrelated storage key', () => {
+    const onChange = vi.fn()
+    watchStoredTheme(onChange)
+
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: 'some-other-key', newValue: 'dark' }),
+    )
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('ignores events whose newValue is not a valid theme', () => {
+    const onChange = vi.fn()
+    watchStoredTheme(onChange)
+
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: THEME_STORAGE_KEY,
+        newValue: '{"theme":"dark"}',
+      }),
+    )
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: THEME_STORAGE_KEY, newValue: null }),
+    )
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('removes its listener on cleanup', () => {
+    const onChange = vi.fn()
+    const stop = watchStoredTheme(onChange)
+
+    stop()
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: THEME_STORAGE_KEY, newValue: 'dark' }),
+    )
+
     expect(onChange).not.toHaveBeenCalled()
   })
 })

@@ -16,6 +16,7 @@ import {
   getInitialTheme,
   setTheme,
   watchPreferredTheme,
+  watchStoredTheme,
   type Theme,
 } from '../theme.ts'
 
@@ -60,6 +61,10 @@ export function ThemeToggle() {
   // Follow the OS for as long as the user has not chosen; the watcher itself
   // stops reporting once a choice is stored.
   useEffect(() => watchPreferredTheme(setThemeState), [])
+
+  // Follow a choice made in another tab or window, so a stored change shows
+  // up here without a reload.
+  useEffect(() => watchStoredTheme(setThemeState), [])
 
   const isDark = theme === 'dark'
   const nextTheme: Theme = isDark ? 'light' : 'dark'
