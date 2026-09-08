@@ -34,6 +34,7 @@ interface Step {
   uses?: string
   run?: string
   'working-directory'?: string
+  with?: { filters?: string }
 }
 
 interface Job {
@@ -45,7 +46,7 @@ interface Job {
 interface Workflow {
   on?: {
     push?: unknown
-    pull_request?: { paths?: string[] }
+    pull_request?: unknown
     workflow_dispatch?: unknown
   }
   permissions?: Record<string, string>
@@ -91,19 +92,38 @@ describe('CI workflow triggers', () => {
     expect(checkJob).toBeDefined()
   })
 
-  it('runs on pull requests touching the site or the workflow', () => {
-    expect(workflow.on?.pull_request?.paths).toContain('site/**')
-    expect(workflow.on?.pull_request?.paths).toContain(
-      '.github/workflows/ci.yml',
+  it('runs on every pull request, unfiltered', () => {
+    // A trigger-level `paths:` filter would mean a PR touching none of those
+    // paths gets no run at all — and GitHub treats a required check that
+    // never reports as permanently pending, not passing. So the trigger
+    // stays unfiltered and the "did this PR touch anything relevant"
+    // question is answered by the paths-filter step inside the job instead
+    // (see the tests below).
+    expect(workflow.on).toHaveProperty('pull_request')
+    expect(workflow.on?.pull_request == null || typeof workflow.on.pull_request !== 'object').toBe(
+      true,
     )
   })
 
-  it('runs on pull requests that only regenerate the PDF', () => {
+  it('gates the substantive steps on site, the workflow file, and the PDF', () => {
+    const pathsFilterStep = checkJob?.steps?.find((step) =>
+      step.uses?.startsWith('dorny/paths-filter@'),
+    )
+    const filters = pathsFilterStep?.with?.filters ?? ''
+    expect(filters).toContain('site/**')
+    expect(filters).toContain('.github/workflows/ci.yml')
+  })
+
+  it('gates on pull requests that only regenerate the PDF', () => {
     // The build copies the repo-root PDF into dist/, so a change to that file
     // alone still has to run the step that compares the two — without the
     // path, the pull request most likely to break the download is the one CI
     // stays silent on.
-    expect(workflow.on?.pull_request?.paths).toContain('resume.pdf')
+    const pathsFilterStep = checkJob?.steps?.find((step) =>
+      step.uses?.startsWith('dorny/paths-filter@'),
+    )
+    const filters = pathsFilterStep?.with?.filters ?? ''
+    expect(filters).toContain('resume.pdf')
   })
 
   it('does not duplicate the deploy workflow, and vice versa', () => {
@@ -117,8 +137,25 @@ describe('CI workflow triggers', () => {
 })
 
 describe('CI workflow safety', () => {
-  it('asks only to read the code', () => {
-    expect(workflow.permissions).toEqual({ contents: 'read' })
+  it('asks only for what the checks need', () => {
+    expect(workflow.permissions).toEqual({
+      contents: 'read',
+      'pull-requests': 'read',
+    })
+  })
+
+  it('grants pull-requests: read for the paths-filter step', () => {
+    // dorny/paths-filter, on a pull_request event with the default token,
+    // calls the GitHub REST API to list the PR's changed files and
+    // documents that this requires `pull-requests: read`. Because this
+    // workflow declares a `permissions:` block at all, every scope it
+    // doesn't list is set to `none` rather than defaulting — so without
+    // this entry the API call gets a 403 and the "Determine changed
+    // paths" step (and the whole job) fails on every pull request.
+    expect(
+      checkJob?.steps?.some((step) => step.uses?.startsWith('dorny/paths-filter@')),
+    ).toBe(true)
+    expect(workflow.permissions?.['pull-requests']).toBe('read')
   })
 
   it('grants nothing a Pages deploy would need', () => {
