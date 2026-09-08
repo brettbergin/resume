@@ -154,6 +154,22 @@ describe('resume entries', () => {
  * two roles in resume.ts fails here rather than silently rendering out of
  * order.
  */
+describe('skills are not duplicated across groups', () => {
+  it('lists every skill item in exactly one group', () => {
+    const seen = new Map<string, string>()
+    for (const group of skillGroups) {
+      for (const item of group.items) {
+        const firstLabel = seen.get(item)
+        expect(
+          firstLabel,
+          `"${item}" appears in both "${firstLabel}" and "${group.label}"`,
+        ).toBeUndefined()
+        seen.set(item, group.label)
+      }
+    }
+  })
+})
+
 describe('experiences are reverse-chronological', () => {
   it('formats every date range as `Month YYYY - Month YYYY|Present`', () => {
     for (const experience of experiences) {
