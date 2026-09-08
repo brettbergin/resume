@@ -28,16 +28,6 @@ import { sections } from './data/sections.ts'
  * explicitly where its links are the subject.
  */
 
-/** Registry entries whose content has been built; the rest still render the
- * label-plus-"Coming soon." placeholder. Extend as sections land. */
-const FILLED_SECTION_IDS: string[] = [
-  'about',
-  'skills',
-  'experience',
-  'projects',
-  'achievements',
-]
-
 /** Every same-page anchor in the document: the skip link plus both navs. */
 function fragmentLinks(): HTMLAnchorElement[] {
   return Array.from(
@@ -107,23 +97,6 @@ describe('App sections', () => {
     expect(rendered.map((section) => section.id)).toEqual(
       sections.map((section) => section.id),
     )
-  })
-
-  it('still renders the registry label as the heading of every placeholder', () => {
-    render(<App />)
-
-    const placeholders = sections.filter(
-      (section) => !FILLED_SECTION_IDS.includes(section.id),
-    )
-
-    expect(placeholders).not.toHaveLength(0)
-    for (const section of placeholders) {
-      const element = document.getElementById(section.id)!
-      expect(within(element).getByRole('heading').textContent).toBe(
-        section.label,
-      )
-      expect(within(element).getByText('Coming soon.')).toBeDefined()
-    }
   })
 })
 
@@ -432,6 +405,59 @@ describe('App achievements section', () => {
 
     expect(headings).toHaveLength(1)
     expect(headings[0].textContent).toBe(achievementsLabel)
+    expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
+  })
+})
+
+/*
+ * The link treatment and every field's exact rendering are asserted next to
+ * ContactSection, so the shell's part is what is checked here — that the
+ * section is filled rather than a placeholder, that the contact fields reach
+ * the page, and that the heading its wrapper is labelled by is the registry's
+ * label.
+ */
+describe('App contact section', () => {
+  /** Scoped: the hero and footer also carry links named "GitHub" and
+   * "Email", and the footer repeats contact.email. */
+  function contactSection() {
+    return document.getElementById('contact')!
+  }
+
+  const contactLabel = sections.find(
+    (section) => section.id === 'contact',
+  )!.label
+
+  it('fills the contact section instead of a placeholder', () => {
+    render(<App />)
+
+    const scope = within(contactSection())
+
+    expect(scope.queryByText('Coming soon.')).toBeNull()
+    expect(scope.getByText(contact.email)).toBeDefined()
+    expect(scope.getByText(contact.phone)).toBeDefined()
+    expect(scope.getByText(contact.location)).toBeDefined()
+    expect(scope.getByText(contact.githubUrl)).toBeDefined()
+  })
+
+  it('labels the section by the heading the contact section renders', () => {
+    render(<App />)
+
+    const labelledBy = contactSection().getAttribute('aria-labelledby')!
+    const heading = document.getElementById(labelledBy)
+
+    expect(heading).not.toBeNull()
+    expect(contactSection().contains(heading)).toBe(true)
+    expect(heading!.textContent).toBe(contactLabel)
+  })
+
+  it('keeps one section heading at level 2 and no competing h1', () => {
+    render(<App />)
+
+    const scope = within(contactSection())
+    const headings = scope.getAllByRole('heading', { level: 2 })
+
+    expect(headings).toHaveLength(1)
+    expect(headings[0].textContent).toBe(contactLabel)
     expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
   })
 })

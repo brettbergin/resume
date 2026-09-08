@@ -11,6 +11,7 @@
  */
 
 import { AchievementsSection } from './components/AchievementsSection.tsx'
+import { ContactSection } from './components/ContactSection.tsx'
 import { ExperienceSection } from './components/ExperienceSection.tsx'
 import { Footer } from './components/Footer.tsx'
 import { Header } from './components/Header.tsx'
@@ -57,6 +58,8 @@ function sectionBody(section: PageSection) {
       return (
         <AchievementsSection headingId={headingId} heading={section.label} />
       )
+    case 'contact':
+      return <ContactSection headingId={headingId} heading={section.label} />
     default:
       return (
         <>
