@@ -36,7 +36,7 @@ export function ProjectsSection({
         {heading}
       </h2>
 
-      <ul className={CARD_GRID}>
+      <ul role="list" className={CARD_GRID}>
         {projects.map((project) => (
           /* The list item is the grid cell and stretches to the row's height;
              the card is a block inside it and `h-full` is what fills it. */

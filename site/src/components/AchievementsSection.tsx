@@ -53,7 +53,7 @@ export function AchievementsSection({
         {heading}
       </h2>
 
-      <ul className={CARD_GRID}>
+      <ul role="list" className={CARD_GRID}>
         {achievements.map((achievement) => (
           <li key={achievement.text} className={CARD}>
             {achievement.metric ? (

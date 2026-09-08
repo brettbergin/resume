@@ -39,7 +39,7 @@ export function ExperienceSection({
           border, and a gap would cut it into segments. Entries space
           themselves with bottom padding instead. `pl-2` keeps the markers,
           which straddle the line, inside the content column at 320px. */}
-      <ol className="flex flex-col pl-2">
+      <ol role="list" className="flex flex-col pl-2">
         {experiences.map((experience) => (
           <ExperienceEntry
             key={`${experience.company} ${experience.dates}`}

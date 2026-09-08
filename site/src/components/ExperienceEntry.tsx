@@ -103,6 +103,7 @@ export function ExperienceEntry({ experience }: { experience: Experience }) {
       {/* `list-disc` needs list-item children, so the bullets are spaced with
           `space-y-*` rather than turned into a flex column. */}
       <ul
+        role="list"
         id={highlightsId}
         aria-labelledby={headingId}
         className="mt-4 list-disc space-y-2 pl-5 text-base text-text"
