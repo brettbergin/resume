@@ -58,6 +58,7 @@ const workflow: Workflow = parse(workflowSource)
 const deployWorkflow: Workflow = parse(deploySource)
 const jobs = workflow.jobs ?? {}
 const checkJob = jobs.check
+const responsiveJob = jobs.responsive
 
 /** The directory a step runs in, falling back to the job-level default. */
 const runsIn = (job: Job, step: Step): string | undefined =>
@@ -87,9 +88,10 @@ const assertIndexRun =
   'test -f dist/index.html && grep -Eq \'<script[^>]*type="module"[^>]*src="/resume/assets/index-[A-Za-z0-9_-]+\\.js"\' dist/index.html'
 
 describe('CI workflow triggers', () => {
-  it('parses as YAML with exactly one job', () => {
-    expect(Object.keys(jobs)).toEqual(['check'])
+  it('parses as YAML with exactly two jobs', () => {
+    expect(Object.keys(jobs)).toEqual(['check', 'responsive'])
     expect(checkJob).toBeDefined()
+    expect(responsiveJob).toBeDefined()
   })
 
   it('runs on every pull request, unfiltered', () => {
@@ -257,6 +259,52 @@ describe('CI check job', () => {
     const typecheck = packageJson.scripts?.typecheck ?? ''
     expect(typecheck).toMatch(/\btsc\b.*\s-b\b/)
     expect(typecheck).toContain('--noEmit')
+  })
+})
+
+describe('CI responsive job', () => {
+  const browserInstallRun = 'npx playwright install --with-deps chromium'
+
+  it('runs on ubuntu-latest inside site/', () => {
+    expect(responsiveJob?.['runs-on']).toBe('ubuntu-latest')
+    expect(responsiveJob?.defaults?.run?.['working-directory']).toBe('site')
+  })
+
+  it('checks out and sets up Node the same way `check` does', () => {
+    const uses = (responsiveJob?.steps ?? []).map((step) => step.uses)
+    expect(uses).toContain('actions/checkout@v5')
+    expect(uses).toContain('actions/setup-node@v5')
+  })
+
+  it('gates on the same changed paths as `check`', () => {
+    const pathsFilterStep = responsiveJob?.steps?.find((step) =>
+      step.uses?.startsWith('dorny/paths-filter@'),
+    )
+    const filters = pathsFilterStep?.with?.filters ?? ''
+    expect(filters).toContain('site/**')
+    expect(filters).toContain('resume.pdf')
+    expect(filters).toContain('.github/workflows/ci.yml')
+  })
+
+  it('installs the Playwright browser before running the e2e suite', () => {
+    const browserInstall = stepRunning(responsiveJob, browserInstallRun)
+    expect(browserInstall).toBeDefined()
+    expect(runsIn(responsiveJob!, browserInstall!)).toBe('site')
+
+    const e2e = stepRunning(responsiveJob, 'npm run test:e2e')
+    expect(e2e).toBeDefined()
+    expect(runsIn(responsiveJob!, e2e!)).toBe('site')
+
+    expect(stepIndex(responsiveJob, 'npm run test:e2e')).toBeGreaterThan(
+      stepIndex(responsiveJob, browserInstallRun),
+    )
+  })
+
+  it('runs npm ci before the browser install and the e2e suite', () => {
+    const install = stepIndex(responsiveJob, 'npm ci')
+    expect(install).toBeGreaterThanOrEqual(0)
+    expect(stepIndex(responsiveJob, browserInstallRun)).toBeGreaterThan(install)
+    expect(stepIndex(responsiveJob, 'npm run test:e2e')).toBeGreaterThan(install)
   })
 })
 

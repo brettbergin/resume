@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 import { resumePdf } from './vite/resume-pdf.ts'
 import { themeScript } from './vite/theme-script.ts'
@@ -26,5 +26,10 @@ export default defineConfig({
     // Tests import describe/it/expect from 'vitest' explicitly.
     globals: false,
     setupFiles: ['./src/test/setup.ts'],
+    // e2e/** is the Playwright suite (see playwright.config.ts): it imports
+    // `test`/`expect` from '@playwright/test', not vitest, and needs a real
+    // browser rather than jsdom, so it must not be picked up by vitest's
+    // default `*.spec.ts` include glob.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 })

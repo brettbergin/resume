@@ -1,9 +1,9 @@
 name: CI
 
-# Pull-request gate for the site: lint, type-check and build. Deliberately
-# separate from deploy-pages.yml, which publishes on pushes to main — a green
-# run here means the code compiles and builds, not that the layout is right.
-# Responsive and accessibility behaviour is still verified by hand.
+# Pull-request gate for the site: lint, type-check, build, and (in the
+# `responsive` job) the Playwright suite that checks layout at four widths.
+# Deliberately separate from deploy-pages.yml, which publishes on pushes to
+# main. Accessibility behaviour beyond that suite is still verified by hand.
 #
 # The trigger below is deliberately unfiltered: if this job is ever made a
 # required status check, a `paths:` filter here would mean a PR touching
@@ -105,3 +105,51 @@ jobs:
       - name: Assert dist/index.html references the built bundle
         if: steps.changes.outputs.relevant == 'true'
         run: test -f dist/index.html && grep -Eq '<script[^>]*type="module"[^>]*src="/resume/assets/index-[A-Za-z0-9_-]+\.js"' dist/index.html
+
+  # Browser-backed check on the four widths test/layout-contract.test.ts's own
+  # comment says jsdom cannot verify (see e2e/responsive.spec.ts). A separate
+  # job rather than more `check` steps: it needs a browser install that the
+  # other steps don't, and a failure here is about responsive layout, not
+  # about lint/type/build, so it should annotate its own line in the PR's
+  # checks rather than blur into `check`'s.
+  responsive:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v5
+
+      # Same filter as `check`, so this job is also a fast no-op on a PR that
+      # touches nothing relevant.
+      - name: Determine changed paths
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            relevant:
+              - site/**
+              - resume.pdf
+              - .github/workflows/ci.yml
+
+      - uses: actions/setup-node@v5
+        if: steps.changes.outputs.relevant == 'true'
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        if: steps.changes.outputs.relevant == 'true'
+        run: npm ci
+
+      # Playwright's own browser binaries aren't part of the npm install, and
+      # `--with-deps` also installs the system libraries Chromium needs on a
+      # bare runner image.
+      - name: Install Playwright browsers
+        if: steps.changes.outputs.relevant == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Responsive e2e suite
+        if: steps.changes.outputs.relevant == 'true'
+        run: npm run test:e2e
