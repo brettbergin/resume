@@ -4,21 +4,29 @@ name: CI
 # separate from deploy-pages.yml, which publishes on pushes to main — a green
 # run here means the code compiles and builds, not that the layout is right.
 # Responsive and accessibility behaviour is still verified by hand.
+#
+# The trigger below is deliberately unfiltered: if this job is ever made a
+# required status check, a `paths:` filter here would mean a PR touching
+# none of those paths gets no run at all, and GitHub treats a required check
+# that never reports as permanently pending rather than passing — the PR
+# becomes unmergeable. So the job always runs and always reports a status;
+# the "did this PR touch anything relevant" question is answered inside the
+# job instead (see the `changes` step below), which gates the substantive
+# steps but still lets the job complete quickly and green when nothing
+# relevant changed.
 on:
   pull_request:
-    paths:
-      - site/**
-      # The build emits the repo-root PDF into dist/, so a pull request that
-      # only regenerates the resume still has to run the check that compares
-      # the two.
-      - resume.pdf
-      # Changes to the workflow itself exercise CI too, so a broken edit here
-      # surfaces on the pull request that makes it.
-      - .github/workflows/ci.yml
 
 # This job publishes nothing, so it asks for no more than reading the code.
+# `pull-requests: read` is for the `changes` step below: dorny/paths-filter
+# on a pull_request event with the default token calls the GitHub REST API
+# to list the PR's changed files, which needs this scope explicitly — a
+# `permissions:` block set at all turns off every unlisted scope rather than
+# defaulting it, so without this line the API call is rejected with 403 and
+# the job fails on every PR, not just out-of-scope ones.
 permissions:
   contents: read
+  pull-requests: read
 
 # The opposite of the deploy workflow's queueing, for the opposite reason:
 # a superseded push to a pull request has nothing half-published to protect,
@@ -36,13 +44,30 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Same three patterns the old `on.pull_request.paths` filter used —
+      # the build emits the repo-root PDF into dist/, so a pull request that
+      # only regenerates the resume still needs the comparison step, and a
+      # broken edit to this workflow needs to exercise itself too. Everything
+      # below gates on this instead of the trigger.
+      - name: Determine changed paths
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            relevant:
+              - site/**
+              - resume.pdf
+              - .github/workflows/ci.yml
+
       - uses: actions/setup-node@v5
+        if: steps.changes.outputs.relevant == 'true'
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: site/package-lock.json
 
       - name: Install dependencies
+        if: steps.changes.outputs.relevant == 'true'
         run: npm ci
 
       # Three separate steps rather than one chained command: whichever one
@@ -53,14 +78,17 @@ jobs:
       # The flag lives here rather than in the script so a local `npm run lint`
       # stays advisory while the pull-request check is absolute.
       - name: Lint
+        if: steps.changes.outputs.relevant == 'true'
         run: npm run lint -- --deny-warnings
 
       # `typecheck` is `tsc -b --noEmit`, so this reports type errors without
       # leaving build output behind for the build step to trip over.
       - name: Type-check
+        if: steps.changes.outputs.relevant == 'true'
         run: npm run typecheck
 
       - name: Build
+        if: steps.changes.outputs.relevant == 'true'
         run: npm run build
 
       # The plugin that emits the PDF is only unit-tested, against stand-in
@@ -68,10 +96,12 @@ jobs:
       # checked. A wrong or missing asset is a 404 behind the download button,
       # which nothing else in this job would notice.
       - name: Compare emitted PDF with the repo-root one
+        if: steps.changes.outputs.relevant == 'true'
         run: cmp dist/resume.pdf ../resume.pdf
 
       # Vite content-hashes the entry bundle and base-prefixes its path, so a
       # broken base or an emptied dist/ would still leave index.html on disk —
       # only checking what it points at catches a page that 404s on load.
       - name: Assert dist/index.html references the built bundle
+        if: steps.changes.outputs.relevant == 'true'
         run: test -f dist/index.html && grep -Eq '<script[^>]*type="module"[^>]*src="/resume/assets/index-[A-Za-z0-9_-]+\.js"' dist/index.html
