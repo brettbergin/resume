@@ -628,6 +628,12 @@ truncated or overlapping, and no tap target cramped against its neighbour.
       renders: the button is comfortably tappable at 375px (inspect it: its
       box height in devtools is ≥ 44), and expanding it reveals the remaining
       bullets without widening the page.
+- [ ] **Show earlier roles toggle** — below the timeline, a "Show N earlier
+      roles" button is present, comfortably tappable at 375px (box height in
+      devtools is ≥ 44), and pressing it reveals the older roles in place
+      (immediately after the 3 most recent) without widening the page;
+      pressing it again ("Show less") collapses back to 3, independent of any
+      individual role's own show-more toggle.
 - [ ] **Projects at 375px** — the cards read as a single stacked column, the
       whole card is the tap target (press anywhere on it, not just the name,
       and the repo opens in a new tab), each description wraps onto as many
