@@ -91,6 +91,28 @@ describe('ProjectCard', () => {
     expect(classesOf(card())).toContain('focus-visible:outline-accent')
   })
 
+  it('halos the card on hover and on keyboard focus', () => {
+    render(<ProjectCard project={projects[0]} />)
+
+    const classes = classesOf(card())
+
+    // `glow-ring` is a box-shadow scoped to `.dark` in index.css, so it is
+    // additive to the outline above rather than a second focus indicator —
+    // and it paints nothing at all in the light palette.
+    expect(classes).toContain('hover:glow-ring')
+    expect(classes).toContain('focus-visible:glow-ring')
+  })
+
+  it('tilts the card toward the pointer', () => {
+    render(<ProjectCard project={projects[0]} />)
+
+    // `tilt-card` is the index.css utility that owns the perspective, the
+    // settle-back transition and the specular gradient; src/useTilt.ts writes
+    // the custom properties it reads, and no-ops on a touch screen or under
+    // reduced motion, where the utility's own rest values keep the card flat.
+    expect(classesOf(card())).toContain('tilt-card')
+  })
+
   it('wraps a long description instead of clipping it', () => {
     // Longer than any description in the resume today: the card has to grow,
     // because on a 320px screen there is nowhere else for the words to go.

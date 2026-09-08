@@ -120,6 +120,29 @@ describe('Header', () => {
     )
   })
 
+  it('sweeps and blooms an inline nav link on hover and keyboard focus only', () => {
+    render(<Header />)
+
+    const nav = screen.getByRole('navigation', { name: 'Primary' })
+
+    for (const link of within(nav).getAllByRole('link')) {
+      const classes = link.className.split(/\s+/)
+
+      // The band of accent light, and the clip that keeps it inside the pill.
+      expect(classes).toContain('sweep')
+      expect(classes).toContain('overflow-hidden')
+      // The bloom is a hover/focus affordance: there is no active-section
+      // tracking in this app, so an unprefixed `glow-text` here would light
+      // every link at once and claim a state nothing computes.
+      expect(classes).toContain('hover:glow-text')
+      expect(classes).toContain('focus-visible:glow-text')
+      expect(classes).not.toContain('glow-text')
+      // Clipping the sweep must not cost the link its focus ring; the ring is
+      // an outline drawn outside the border box.
+      expect(classes).toContain('focus-visible:outline-accent')
+    }
+  })
+
   it('renders the same section links inside the mobile menu', async () => {
     const user = userEvent.setup()
     render(<Header />)

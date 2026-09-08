@@ -55,8 +55,8 @@ const interWoff2 = resolve(
  * someone else's surface, and a dark card reads as deliberate against both a
  * light and a dark chat client. */
 const background = site.themeColorDark
-const accent = '#2563eb' /* --color-brand-600 */
-const accentText = '#60a5fa' /* --color-brand-400 */
+const accent = '#20c002' /* --color-brand-600 */
+const accentText = '#39ff14' /* --color-brand-400 */
 const mutedText = '#9ca3af' /* --color-neutral-400 */
 
 /** Every edge of the card is croppable — Slack, Discord and X each trim a
@@ -85,8 +85,8 @@ const githubLabel = contact.githubUrl
  *
  * Baselines, top to bottom: the accent rule sits above the name as a masthead
  * rule; the name is the one thing that survives every thumbnail size, so it
- * gets ~84px; the job title reads as the subtitle in brand blue; the contact
- * line is muted and sits well clear of the bottom crop.
+ * gets ~84px; the job title reads as the subtitle in the brand accent; the
+ * contact line is muted and sits well clear of the bottom crop.
  *
  * There are no `font-weight` attributes because they would be dead markup:
  * resvg renders a variable font at its default instance only, so every weight

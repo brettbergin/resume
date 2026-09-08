@@ -32,7 +32,7 @@ export function ProjectsSection({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <h2 id={headingId} className="text-2xl font-medium">
+      <h2 id={headingId} className="glow-text text-2xl font-medium">
         {heading}
       </h2>
 

@@ -17,17 +17,27 @@
  * noreferrer"` — the hero's GitHub button is the precedent.
  */
 
+import { useRef } from 'react'
+
 import type { Project } from '../data/types.ts'
 import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../styles.ts'
+import { useTilt } from '../useTilt.ts'
 
 /** The same token vocabulary the achievements and skills cards use, so the
  * three sections read as one system. `h-full` is what squares the cards off in
- * a row once the grid has more than one column. */
-const CARD = `flex h-full ${TAP_TARGET_HEIGHT} flex-col gap-2 rounded-card border border-border bg-surface p-4 hover:border-accent ${FOCUS_RING}`
+ * a row once the grid has more than one column. `tilt-card` is the index.css
+ * utility that turns the custom properties `useTilt` writes below into the
+ * rotation and the specular highlight; it declares its own rest values, so a
+ * card that never sees a pointer — a phone, reduced motion — renders flat. */
+const CARD = `tilt-card flex h-full ${TAP_TARGET_HEIGHT} flex-col gap-2 rounded-card border border-border bg-surface p-4 hover:border-accent hover:glow-ring focus-visible:glow-ring ${FOCUS_RING}`
 
 export function ProjectCard({ project }: { project: Project }) {
+  const card = useRef<HTMLAnchorElement>(null)
+  useTilt(card)
+
   return (
     <a
+      ref={card}
       href={project.url}
       target="_blank"
       rel="noopener noreferrer"

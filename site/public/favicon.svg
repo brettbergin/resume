@@ -1,13 +1,18 @@
 <!--
   'BB' monogram. Hand-authored so it stays diffable: two elements, no path
-  blob. The colours are the literals src/index.css resolves the brand-600 and
-  accent-contrast custom properties to. (They are written without their CSS
-  prefix on purpose: a pair of hyphens is not legal inside an XML comment.)
+  blob. The colours are the literals src/index.css resolves the dark palette's
+  accent and accent-contrast custom properties to — brand-400 and neutral-900.
+  (They are written without their CSS prefix on purpose: a pair of hyphens is
+  not legal inside an XML comment.)
+
+  The dark palette's pairing rather than the light one's, because the acid
+  green only carries a glyph at the bright end of the ramp: white letters on
+  brand-600 are 2.4:1, while this ink-on-brand-400 pairing is 13:1.
 
   The square is full-bleed and opaque deliberately. scripts/generate-images.ts
   rasterises this same file into apple-touch-icon.png, and iOS composites a
   home-screen icon onto whatever the wallpaper happens to be, so a transparent
-  background would leave white letters floating on an arbitrary photo.
+  background would leave the letters floating on an arbitrary photo.
 
   The font stack ends in sans-serif for browsers drawing the tab icon, where
   Inter is only present if the visitor happens to have it. The raster step
@@ -15,7 +20,7 @@
   depend on that.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="BB">
-  <rect width="64" height="64" rx="14" fill="#2563eb" />
+  <rect width="64" height="64" rx="14" fill="#39ff14" />
   <text
     x="32"
     y="42.5"
@@ -23,6 +28,6 @@
     font-family="Inter Variable, Inter, Helvetica, Arial, sans-serif"
     font-size="30"
     font-weight="700"
-    fill="#ffffff"
+    fill="#111827"
   >BB</text>
 </svg>

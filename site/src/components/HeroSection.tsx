@@ -19,18 +19,32 @@ import { contact, summary } from '../data/resume.ts'
 import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../styles.ts'
 
 /** Full width below `sm`, where the buttons are stacked, and content width
- * once they sit in a row. */
-const CTA = `inline-flex ${TAP_TARGET_HEIGHT} w-full items-center justify-center gap-2 rounded-pill px-4 text-base sm:w-auto ${FOCUS_RING}`
+ * once they sit in a row.
+ *
+ * `sweep` is the band of accent light that crosses the button on hover and on
+ * keyboard focus; `overflow-hidden` is what clips it to the pill. It clips the
+ * bar only — the focus ring is an `outline` drawn outside the border box, so
+ * FOCUS_RING still reads at full size. */
+const CTA = `inline-flex ${TAP_TARGET_HEIGHT} w-full items-center justify-center gap-2 overflow-hidden rounded-pill px-4 text-base sweep sm:w-auto ${FOCUS_RING}`
 
-const PRIMARY_CTA = `${CTA} bg-accent font-medium text-accent-contrast hover:opacity-90`
+/** The halo a hovered or keyboard-focused control picks up in dark mode. It is
+ * a `box-shadow` and the focus ring is an `outline`, so under `focus-visible:`
+ * it sits behind FOCUS_RING rather than replacing it; in light mode the
+ * utility is declared but paints nothing. */
+const GLOW = 'hover:glow-ring focus-visible:glow-ring'
 
-const SECONDARY_CTA = `${CTA} border border-border-strong text-text hover:border-accent hover:text-accent`
+const PRIMARY_CTA = `${CTA} bg-accent font-medium text-accent-contrast hover:opacity-90 ${GLOW}`
+
+const SECONDARY_CTA = `${CTA} border border-border-strong text-text hover:border-accent hover:text-accent ${GLOW}`
 
 export function HeroSection({ headingId }: { headingId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 id={headingId} className="text-3xl font-semibold md:text-4xl">
+        <h1
+          id={headingId}
+          className="glow-text text-3xl font-semibold md:text-4xl"
+        >
           {summary.name}
         </h1>
         <p className="text-lg text-accent md:text-xl">{summary.title}</p>

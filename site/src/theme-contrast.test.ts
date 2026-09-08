@@ -174,6 +174,34 @@ describe('theme tokens', () => {
     expect(dark.get('--color-border-strong')).toBe('var(--color-neutral-400)')
   })
 
+  it('declares --color-glow and --color-accent-dim in both palettes', () => {
+    /*
+     * The two tokens the glow and specular treatments read. They are pinned
+     * here rather than left to the parity case above because `--color-glow`
+     * is a `color-mix()` literal, not a `var(--color-…)` alias, so the
+     * "every semantic token is reassigned in .dark" rule does not reach it:
+     * dropping it from `.dark` would silently leave the dark theme glowing
+     * in the light accent.
+     */
+    for (const token of ['--color-glow', '--color-accent-dim']) {
+      expect(theme.has(token), `${token} is missing from @theme`).toBe(true)
+      expect(dark.has(token), `${token} is missing from .dark`).toBe(true)
+      expect(
+        theme.get(token),
+        `${token} has the same value in both palettes`,
+      ).not.toBe(dark.get(token))
+    }
+
+    // The glow is a shadow color and nothing else, so it carries alpha and is
+    // exempt from the contrast pairs below; keep it that way.
+    expect(theme.get('--color-glow')).toContain('transparent')
+    expect(dark.get('--color-glow')).toContain('transparent')
+
+    // The specular gradient stop stays a ramp alias, so it resolves.
+    expect(aliasTarget(theme.get('--color-accent-dim') ?? '')).not.toBe(null)
+    expect(aliasTarget(dark.get('--color-accent-dim') ?? '')).not.toBe(null)
+  })
+
   it('resolves every semantic token through the ramps in both themes', () => {
     for (const { name, overrides } of THEMES) {
       for (const [token, value] of theme) {

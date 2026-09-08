@@ -89,7 +89,8 @@ describe('favicon.svg', () => {
   })
 
   it('is drawn in the brand colour', () => {
-    expect(svg.toLowerCase()).toContain('#2563eb')
+    // brand-400, the step the dark palette resolves `--color-accent` to.
+    expect(svg.toLowerCase()).toContain('#39ff14')
   })
 
   it('is not Vite\'s default logo any more', () => {

@@ -61,7 +61,7 @@ export function ExperienceSection({
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 id={headingId} className="text-2xl font-medium">
+      <h2 id={headingId} className="glow-text text-2xl font-medium">
         {heading}
       </h2>
 
@@ -89,7 +89,7 @@ export function ExperienceSection({
           onClick={() => {
             setExpanded((wasExpanded) => !wasExpanded)
           }}
-          className={`inline-flex ${TAP_TARGET_HEIGHT} w-fit items-center rounded-pill border border-border-strong px-4 text-base text-text hover:text-accent ${FOCUS_RING}`}
+          className={`inline-flex ${TAP_TARGET_HEIGHT} w-fit items-center rounded-pill border border-border-strong px-4 text-base text-text hover:text-accent hover:glow-ring focus-visible:glow-ring ${FOCUS_RING}`}
         >
           {expanded ? 'Show less' : `Show ${hiddenCount} earlier roles`}
         </button>

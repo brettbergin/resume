@@ -355,6 +355,31 @@ the content would otherwise cost a keyboard user a tab through every nav link
 before reaching the page; `scroll-margin-top` on `section[id]` (see
 `index.css`) keeps the header from covering whatever the anchor jumped to.
 
+### Shared hooks
+
+Two hooks sit beside the components rather than inside one of them, because
+each is a browser behaviour several components borrow rather than markup any
+one of them owns:
+
+| Hook                   | What it does                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `src/useScrollLock.ts` | Freezes the page behind the mobile menu. `overflow: hidden` alone is not enough — iOS Safari still rubber-bands, so the body is pinned with `position: fixed` — and the cleanup restores the previous values *and* the scroll position, on close and on unmount-while-open alike, so unlocking does not jump the page to the top |
+| `src/useTilt.ts`       | Tilts a card toward the pointer. It writes only four custom properties on the element — `--tilt-x` / `--tilt-y` for the rotation, `--spec-x` / `--spec-y` for the centre of the specular — leaving the perspective, the gradient and the settle-back transition to the `tilt-card` utility in `index.css`. Used by `ProjectCard.tsx`, `AchievementsSection.tsx` and `SkillsSection.tsx` |
+
+**`useTilt` no-ops twice over, and both no-ops are the point.** Before
+attaching anything it reads `(hover: none)` and
+`(prefers-reduced-motion: reduce)`; if either matches it registers no
+listeners and writes no properties at all, so the element keeps the rest values
+`tilt-card` declares — an identity transform and a centred highlight. A touch
+screen therefore gets no tilt (one that followed a finger would fight the
+scroll) and a reader who asked for reduced motion gets no card moving under
+the cursor. The two queries are read once, up front, with no `change` listener
+registered: several suites stub `matchMedia` with a single fake object shared
+by every query, and a hook that subscribed would show up in their listener
+counts. `index.css`'s reduced-motion block also flattens `.tilt-card` in CSS —
+belt to the hook's braces, covering a preference changed after the hook has
+already attached.
+
 ## Styling: Tailwind CSS v4, CSS-first
 
 Tailwind is wired in through the `@tailwindcss/vite` plugin (see
@@ -369,19 +394,38 @@ the `@theme` block — do not reintroduce a JS config.
 ### Design tokens
 
 `src/index.css` defines two raw ramps (`--color-brand-*`, `--color-neutral-*`)
-plus radii, and then maps them onto six semantic tokens:
+plus radii, and then maps them onto eight semantic tokens. The brand ramp is
+one acid-green hue (the hue of `#39ff14`) stepped in lightness, so the bright
+steps carry the radioactive dark-mode accent and the dark steps are printable
+enough to carry light-mode text; the neutral ramp gains two rungs below the
+cool gray (`neutral-850`, `neutral-950`) for the ink-black dark palette, so
+every semantic token still aliases a ramp step rather than a literal.
 
-| Token             | Used for                                  |
-| ----------------- | ----------------------------------------- |
-| `--color-bg`      | page background                           |
-| `--color-surface` | raised surfaces: cards, panels, code blocks |
-| `--color-text`    | primary body text                         |
-| `--color-muted`   | secondary/supporting text                 |
-| `--color-border`  | hairlines, dividers, card borders         |
-| `--color-accent`  | links, emphasis, interactive affordances  |
+| Token                | Used for                                  |
+| -------------------- | ----------------------------------------- |
+| `--color-bg`         | page background                           |
+| `--color-surface`    | raised surfaces: cards, panels, code blocks |
+| `--color-text`       | primary body text                         |
+| `--color-muted`      | secondary/supporting text                 |
+| `--color-border`     | hairlines, dividers, card borders         |
+| `--color-accent`     | links, emphasis, interactive affordances  |
+| `--color-glow`       | the accent carried with alpha — used **only** as a `box-shadow` / `text-shadow` colour: the halo behind headings and metrics, the bloom on a hovered card or button, the shoulders of the hover sweep |
+| `--color-accent-dim` | the bright core of a gradient — the specular pool on a tilted card, and the middle of the sweep bar in the dark palette (light uses `--color-glow` there; see below) |
 
 (`--color-accent-contrast` is also available for text placed *on* an accent
-fill.)
+fill, and `--color-border-strong` for the boundary of an outlined control —
+see [`--color-border` vs `--color-border-strong`](#--color-border-vs---color-border-strong).)
+
+**The two glow tokens are declared in both palettes and painted in only one.**
+`--color-glow` and `--color-accent-dim` exist in the light `@theme` block as
+well as in `.dark`, because `src/theme-contrast.test.ts` fails any token one
+palette declares and the other does not — neither palette may fall back to an
+undefined value. But the utilities that read `--color-glow` as a shadow are
+scoped to `.dark` (see below), so **light mode never draws a halo**: it is the
+printable variant of the same hue, not a dimmed copy of the dark one. Both
+tokens are also deliberately outside that suite's contrast pairs — neither is
+ever a fill or a text colour, and a glow that misses 4.5:1 is a dim glow rather
+than unreadable text.
 
 **Components should use the semantic tokens, not the raw palette steps.**
 Write `bg-bg text-text border-border text-accent` rather than
@@ -389,6 +433,67 @@ Write `bg-bg text-text border-border text-accent` rather than
 mode in one place, so a component built on them needs no `dark:` variants at
 all. Reach for `brand-*` / `neutral-*` directly only when adding a new
 semantic token.
+
+### The accent's treatments: `glow-text`, `glow-ring`, `tilt-card`, `sweep`
+
+Four named `@utility` rules in `src/index.css` carry everything the neon accent
+does beyond being a colour:
+
+| Utility     | What it draws                                                                                     | Carried by                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `glow-text` | Two stacked `text-shadow`s in `--color-glow` — a halo close in, a wider bloom behind it            | The hero's `<h1>`, every section `<h2>`, the achievement metric callouts, and the header nav links on hover/focus         |
+| `glow-ring` | A `box-shadow`: a hairline in `--color-accent` plus a bloom in `--color-glow`                       | `hover:` and `focus-visible:` on the project cards, the hero CTAs and the two show-more buttons                           |
+| `tilt-card` | The `perspective(800px)` rotation driven by `--tilt-x` / `--tilt-y`, and an `::after` radial specular centred on `--spec-x` / `--spec-y` | The project cards, the achievement cards and the skill group cards — each paired with `useTilt` (see [Shared hooks](#shared-hooks)) |
+| `sweep`     | A `::before` gradient bar that translates from off-canvas left to off-canvas right over 600ms, on a hovering pointer or on keyboard focus | The hero CTAs and the header nav links, each with `overflow-hidden` so the bar is clipped to the control                  |
+
+**They are utilities in `index.css`, not bracketed arbitrary values in a
+component's class list, on purpose.** Every one of them needs a number a
+browser has to be told exactly — an 800px perspective, a 24px blur radius, a
+600ms duration, a five-stop gradient — and `test/layout-contract.test.ts`
+exists to keep magic numbers of that kind out of the shell's source, where six
+copies could each drift on their own. Naming them here gives one definition to
+retune and one string to grep for. (This README follows the same rule the
+contract test does and never writes a bracketed class name out in full:
+Tailwind v4 scans every file in the project, so a literal example in prose
+would be emitted into the shipped CSS.)
+
+Three details worth knowing before applying them:
+
+- **The glows self-scope to the dark palette; the sweep does not.** `glow-text`
+  and `glow-ring` wrap their declarations in the same `.dark` predicate
+  `@custom-variant dark` uses, so a component writes them unprefixed and they
+  simply paint nothing in light mode. The sweep is a motion affordance rather
+  than the dark palette's signature, so it runs in both palettes at each one's
+  own accent steps.
+- **The sweep's hover clause is gated on `(hover: hover)`, and its band is
+  palette-scoped.** Two things about it are easy to get wrong a second time.
+  A hand-written `:hover` rule inside an `@utility` is *not* wrapped in the
+  media query Tailwind compiles its own `hover:` variants into, and mobile
+  browsers apply `:hover` to whatever was last tapped — so the clause writes
+  that query itself, leaving `:focus-visible` outside it for keyboards. And the
+  band's centre stop is a local property with a light default and a `.dark`
+  override, not `--color-accent-dim` in both: the light primary CTA is white on
+  brand-800 and has 4.75:1 to give once its own hover dimming composites, so a
+  stop brighter than that fill drops the label to 3.60:1. Light therefore
+  carries the alpha'd `--color-glow`, which composites to the accent fill it
+  sits on and still reads as a band over the outlined CTAs and the nav links.
+  `test/rice-contract.test.ts` measures both palettes' composites, and the
+  600ms lives on the hover and focus clauses only, so losing the state parks
+  the bar instead of animating it back across the label.
+- **`glow-ring` is not a focus ring.** The ring is still `FOCUS_RING` from
+  `src/styles.ts` and still an `outline` — `test/layout-contract.test.ts`
+  forbids a component declaring one itself — so under `focus-visible:` the
+  outline and the `box-shadow` compose instead of one replacing the other.
+
+`test/rice-contract.test.ts` pins all of this as source text: that each utility
+is declared with the pieces that make it work, that the glows are `.dark`-scoped,
+that the single `prefers-reduced-motion` block neutralises the tilt and the
+sweep and leaves the glow alone, and that the components which are supposed to
+carry each class still carry it. It asserts nothing about rendering — jsdom
+applies no stylesheet, so a "the card is rotated" assertion there would pass
+whether or not `index.css` declared the transform. Whether the halo, the tilt
+and the sweep actually *look* right is the last four items of
+[Manual check](#manual-check-widths-mobile-menu-theme-persistence).
 
 ### Light and dark
 
@@ -446,6 +551,8 @@ engine stays a person's check in
 | `src/theme-contrast.test.ts` | Token parity and declared contrast over `src/index.css` read as text: every property `.dark` reassigns exists in `@theme` and every semantic `@theme` token is reassigned in `.dark`, so neither palette can fall back to an undefined value; and each semantic token resolved through the ramps to a hex, with the WCAG 2.x ratio computed per theme — 4.5:1 for text pairs (AA 1.4.3) and 3:1 for `--color-border-strong` (AA 1.4.11) |
 | `test/layout-contract.test.ts` | The source guards: no width or minimum width pinned in pixels, no `overflow-x-hidden`, no arbitrary font size below `1rem`, no gap under `gap-2`, the three content columns padded to the same edges, no `<a>` or `<button>` missing the `min-h-11` 44px tap-target floor, and no component declaring the focus ring itself instead of importing `FOCUS_RING` from `src/styles.ts` |
 | `test/index-html.test.ts` | The document-level half a client-rendered page cannot assert from the React tree: the `lang` attribute on `<html>`, and that nothing focusable sits outside `#root` — which is what lets "first focusable element of the render" mean "first focusable element of the page" |
+| `test/rice-contract.test.ts` | The source pins for the accent's treatments, read as text out of `src/index.css` and the components: each of `glow-text`, `glow-ring`, `tilt-card` and `sweep` declared with the pieces that make it work, the two glows scoped to `.dark` so light mode is the printable variant, one `prefers-reduced-motion` block that names the tilt and the sweep and neutralises both while leaving the static glow alone, the sweep's hover clause inside `(hover: hover)` with its duration on the crossing rather than the return, and the components that are meant to carry each class still carrying it. Plus the one piece of arithmetic the palette suite cannot do: the sweep bar is a translucent overlay between a control's background and its label, so this file composites its centre stop over each palette's accent fill and page background — the primary CTA's own hover dimming included — and holds every label it can sit under to 4.5:1 |
+| `src/useTilt.test.ts` | The behaviour of `src/useTilt.ts` against a stubbed `matchMedia`: all four custom properties written on `pointermove`, the rotation signed toward the pointer and clamped to `max`, the properties reset on `pointerleave`, both listeners removed on unmount, and **nothing attached or written at all** under `(hover: none)` or `(prefers-reduced-motion: reduce)` — the touch and reduced-motion contracts, which the CSS half cannot express |
 
 `src/styles.ts` is why the per-control assertions are possible at all: the focus
 ring (`FOCUS_RING`) and the 44px target (`TAP_TARGET`, `TAP_TARGET_HEIGHT`) are
@@ -472,14 +579,16 @@ The border token is split in two, in both palettes:
 - `--color-border` (light `neutral-200`, dark `neutral-700`) draws **decorative
   rules** — the header and footer hairlines, the experience timeline's
   connecting line, the skill chips, and the card borders in the skills,
-  projects and achievements grids. At 1.24:1 on the light background it is a
-  divider, not a boundary anything is identified by.
+  projects and achievements grids. At 1.24:1 on the light background (1.92:1 on
+  the ink-black dark one) it is a divider, not a boundary anything is
+  identified by.
 - `--color-border-strong` (light `neutral-500`, dark `neutral-400`) draws the
   **visual boundary of an outlined control** — the header's menu and close
   buttons, the theme toggle, the hero's secondary CTAs and the experience
   show-more button. WCAG 2.1 AA 1.4.11 (Non-text Contrast) wants 3:1 for a
   boundary that is what identifies a component, and it clears that in both
-  themes (4.83:1 / 4.63:1 light, 6.99:1 / 5.78:1 dark on `bg` and `surface`).
+  themes (4.83:1 / 4.63:1 light, 7.80:1 / 7.26:1 dark on `bg` and `surface` —
+  the dark pair rose when the background went ink black).
   `theme-contrast.test.ts` pins those thresholds; `--color-border` is
   deliberately absent from that table.
 
@@ -761,7 +870,7 @@ truncated or overlapping, and no tap target cramped against its neighbour.
         validator, or appending a throwaway `?1` to the URL) rather than
         assuming the tags are wrong.
 - [ ] **Favicon in the browser tab** — load the site and confirm the tab shows
-      the blue mark rather than a blank page glyph or Vite's default bolt.
+      the acid-green mark rather than a blank page glyph or Vite's default bolt.
       Check it on the live URL as well as under `npm run dev`: the icon is
       served out of `public/`, and Vite rewrites its href for the `/resume/`
       base, so the two are not the same request. On a real iOS device, "Add to
@@ -770,7 +879,7 @@ truncated or overlapping, and no tap target cramped against its neighbour.
 - [ ] **Mobile browser chrome matches the theme** — on a real phone (devtools
       cannot show browser chrome), load the site and confirm the address-bar
       area matches the page background rather than the browser's default:
-      `#ffffff` in light, `#111827` in dark. Check both, and check the
+      `#ffffff` in light, `#0a0a0a` in dark. Check both, and check the
       **stored-override case specifically**: with the OS set to light, use the
       in-page toggle to switch to dark, then reload. The stored `resume-theme`
       choice wins over the OS preference, so the chrome must come up dark on
@@ -797,3 +906,58 @@ truncated or overlapping, and no tap target cramped against its neighbour.
       actually composited, which is the only thing that catches a hover state,
       an `sr-only` element made visible, or text over a translucent surface.
       Zero `color-contrast` violations in each theme.
+- [ ] **The tilt follows the cursor, on a desktop pointer, in the dark
+      palette.** `test/rice-contract.test.ts` proves `tilt-card` declares the
+      perspective and `src/useTilt.test.ts` proves the hook writes the four
+      properties, but nothing in either says a browser composited a rotation:
+      jsdom applies no stylesheet at all. So move a real mouse across a project
+      card, an achievement card and a skill group card at 1440px and confirm
+      each one **leans toward the pointer** (right of centre rotates it about
+      Y, above centre lifts the top edge), that the specular sheen tracks the
+      cursor rather than sitting in the middle, and that it **settles back
+      flat** when the pointer leaves rather than snapping. While a card is
+      tilted its text must stay legible and inside its own border, and the
+      sheen must stay a sheen — if it reads as a wash over the words, the
+      `::after` opacity is too high.
+      - A tilted card must not widen the page: check
+        `document.documentElement.scrollWidth === document.documentElement.clientWidth`
+        with the pointer parked on the right-hand column's outermost card at
+        1440px and again at 768px.
+      - Confirm the headings and the achievement metric callouts carry their
+        halo, that a hovered card and a hovered hero CTA bloom, and that a CTA
+        and a header nav link each show the **sweep crossing once**,
+        left to right, rather than a bar parked over the label — and that
+        moving the pointer away **parks** the bar rather than running it back
+        across the label a second time.
+- [ ] **Touch devices get no tilt and no sweep.** On a real phone or tablet
+      (not devtools' responsive mode — it still reports a hovering pointer),
+      press and drag on a project card, an achievement card and a skill group
+      card: the card must stay flat, no highlight may follow the finger, and
+      **the drag must scroll the page** rather than being swallowed by the
+      card. Tapping a project card still opens its repo. This is
+      `src/useTilt.ts`'s `(hover: none)` early return, and a device is the only
+      place it can be seen.
+- [ ] **Light mode is the same hue with no glow.** Toggle to light and confirm
+      the accent is recognisably the *same* green as the dark palette's, just
+      dark enough to read as text — not a second hue, and not the dark accent
+      dimmed until it looks like a mistake. **No halo anywhere:** no bloom
+      behind an `<h1>`, an `<h2>` or a metric callout, and none around a
+      hovered card, CTA or show-more button. Hover and focus still have to be
+      visible without it — the border, text-colour and focus-ring changes are
+      what carry the state here, so walk the keyboard-only pass in light too.
+      The sweep *is* expected in light mode (it is motion, not bloom), in the
+      light accent steps — on the outlined CTAs and the header nav links. On
+      the filled primary CTA the light band is the accent at alpha over the
+      accent fill, so it composites to that fill and is deliberately invisible:
+      that is what keeps the white label at 4.75:1 while it is hovered.
+- [ ] **Reduced motion leaves the page fully usable.** Turn the OS preference
+      on (macOS *Reduce motion*, Windows *Show animations off*, or devtools >
+      Rendering > *Emulate CSS prefers-reduced-motion*), reload, and walk the
+      page: **no card tilts** under the pointer and no specular follows it, no
+      sweep bar crosses a CTA or a nav link, and same-page nav links jump to
+      their section instead of smooth-scrolling. Everything must still *work*
+      — every hover and focus state still visibly changes, the mobile menu
+      still opens and closes, the show-more toggles still expand — and the
+      **glow stays on**, because a `text-shadow` is static paint rather than
+      movement. A control that became indistinguishable from its resting state
+      is the failure to look for.
