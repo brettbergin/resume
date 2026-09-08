@@ -81,6 +81,10 @@ const lintRun = stepNamed(checkJob, 'Lint')?.run ?? ''
 /** The command that checks the built asset against the file it came from. */
 const comparePdfRun = 'cmp dist/resume.pdf ../resume.pdf'
 
+/** The command that checks the built page against the bundle it loads. */
+const assertIndexRun =
+  'test -f dist/index.html && grep -Eq \'<script[^>]*type="module"[^>]*src="/resume/assets/index-[A-Za-z0-9_-]+\\.js"\' dist/index.html'
+
 describe('CI workflow triggers', () => {
   it('parses as YAML with exactly one job', () => {
     expect(Object.keys(jobs)).toEqual(['check'])
@@ -164,6 +168,20 @@ describe('CI check job', () => {
     expect(compare).toBeDefined()
     expect(runsIn(checkJob!, compare!)).toBe('site')
     expect(stepIndex(checkJob, comparePdfRun)).toBeGreaterThan(
+      stepIndex(checkJob, 'npm run build'),
+    )
+  })
+
+  it('asserts dist/index.html references the built bundle after building', () => {
+    // The build could silently emit an index.html that points at nothing (a
+    // wrong base, a stale hash) while still exiting 0, so this step is the
+    // only check on what the real entry point loads. It has to run after the
+    // build that produces dist/, and inside site/ for its relative path to
+    // point where it should.
+    const assertIndex = stepRunning(checkJob, assertIndexRun)
+    expect(assertIndex).toBeDefined()
+    expect(runsIn(checkJob!, assertIndex!)).toBe('site')
+    expect(stepIndex(checkJob, assertIndexRun)).toBeGreaterThan(
       stepIndex(checkJob, 'npm run build'),
     )
   })
