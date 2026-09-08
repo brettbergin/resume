@@ -67,7 +67,7 @@ function SkillGroups({
               {/* `flex-wrap` with a 0.5rem gap: a long group like
                   Specializations takes as many lines as it needs at 320px
                   instead of being clipped or widening the page. */}
-              <ul aria-labelledby={headingId} className="flex flex-wrap gap-2">
+              <ul role="list" aria-labelledby={headingId} className="flex flex-wrap gap-2">
                 {group.items.map((item) => (
                   <li key={item} className={CHIP}>
                     {item}

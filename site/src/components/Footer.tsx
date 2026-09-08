@@ -27,7 +27,10 @@ export function Footer() {
             between two "navigation"s when only one of them navigates. The
             header's primary nav is the page's only one; src/a11y.test.tsx
             asserts that count. */}
-        <ul className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">
+        <ul
+          role="list"
+          className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6"
+        >
           <li>
             <a href={`mailto:${contact.email}`} className={LINK}>
               <svg

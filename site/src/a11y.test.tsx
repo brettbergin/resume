@@ -279,6 +279,27 @@ describe('images and icons', () => {
   })
 })
 
+/*
+ * Tailwind's preflight sets `list-style: none` on every ul/ol, which strips
+ * the implicit `list` role in a real browser unless the element carries an
+ * explicit `role="list"`. jsdom applies no stylesheet, so a computed-role
+ * assertion would pass with or without the fix — this checks the attribute
+ * itself, which is the only thing that actually restores the role in Safari
+ * and VoiceOver.
+ */
+describe('lists', () => {
+  it('gives every rendered ul and ol an explicit role="list"', () => {
+    const { container } = render(<App />)
+
+    const lists = Array.from(container.querySelectorAll('ul, ol'))
+
+    expect(lists.length).toBeGreaterThan(0)
+    for (const list of lists) {
+      expect(list.getAttribute('role'), list.outerHTML).toBe('list')
+    }
+  })
+})
+
 describe('links and buttons', () => {
   it('gives every control a non-empty accessible name', () => {
     const { container } = render(<App />)
