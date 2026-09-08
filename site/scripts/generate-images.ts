@@ -29,7 +29,7 @@
  * set `erasableSyntaxOnly` so nothing in here can grow syntax it cannot strip.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -110,12 +110,12 @@ const ogSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${site.ogImageWidt
 /**
  * resvg takes fonts as file paths, not buffers, and the packaged Inter is
  * WOFF2, which it cannot read. `decompress` unwraps the WOFF2 container back
- * into the SFNT it holds; the TTF is scratch, so it goes to the OS temp dir
- * rather than into the repo.
+ * into the SFNT it holds; the TTF is scratch, so it goes into a fresh temp
+ * directory rather than into the repo.
  */
-const unpackFont = async (): Promise<string> => {
+const unpackFont = async (dir: string): Promise<string> => {
   const ttf = await decompress(readFileSync(interWoff2))
-  const ttfPath = join(tmpdir(), 'resume-site-inter-latin-wght-normal.ttf')
+  const ttfPath = join(dir, 'inter-latin-wght-normal.ttf')
   writeFileSync(ttfPath, ttf)
   return ttfPath
 }
@@ -140,13 +140,19 @@ const write = (fileName: string, bytes: Buffer): void => {
   console.log(`wrote public/${fileName} (${bytes.length} bytes)`)
 }
 
-const fontPath = await unpackFont()
+const tmpDir = mkdtempSync(join(tmpdir(), 'resume-site-'))
 
-write(site.ogImageFileName, renderPng(ogSvg, site.ogImageWidth, fontPath))
+try {
+  const fontPath = await unpackFont(tmpDir)
 
-// The iOS home-screen icon is the favicon at 180x180 rather than a second
-// drawing, so the two cannot drift. 180 is the size iOS asks for; it
-// downsamples from there for the smaller slots.
-const faviconSvg = readFileSync(resolve(publicDir, 'favicon.svg'), 'utf8')
+  write(site.ogImageFileName, renderPng(ogSvg, site.ogImageWidth, fontPath))
 
-write(site.appleTouchIconFileName, renderPng(faviconSvg, 180, fontPath))
+  // The iOS home-screen icon is the favicon at 180x180 rather than a second
+  // drawing, so the two cannot drift. 180 is the size iOS asks for; it
+  // downsamples from there for the smaller slots.
+  const faviconSvg = readFileSync(resolve(publicDir, 'favicon.svg'), 'utf8')
+
+  write(site.appleTouchIconFileName, renderPng(faviconSvg, 180, fontPath))
+} finally {
+  rmSync(tmpDir, { recursive: true, force: true })
+}
