@@ -36,6 +36,10 @@ import { sections } from './data/sections.ts'
  * order. */
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]'
 
+/** The focus-ring utility prefix, split so this file doesn't spell out a
+ * candidate class name Tailwind's content scan would pick up. */
+const FOCUS_UTILITY = 'focus-visible:out' + 'line'
+
 /** The subset the name/focus/tap-target rules apply to: links and enabled
  * buttons. */
 const CONTROLS = 'a[href], button:not([disabled])'
@@ -297,9 +301,9 @@ describe('links and buttons', () => {
       const classes = Array.from(control.classList)
 
       // WCAG 2.4.7: the ring is drawn for keyboard focus only, so the utility
-      // is the `focus-visible:outline-*` family from src/styles.ts.
+      // is the FOCUS_UTILITY family from src/styles.ts.
       expect(
-        classes.some((name) => name.startsWith('focus-visible:outline')),
+        classes.some((name) => name.startsWith(FOCUS_UTILITY)),
         describeControl(control),
       ).toBe(true)
       // WCAG 2.5.5: 44px on the axis the content does not size. The skip link
@@ -334,7 +338,7 @@ describe('links and buttons', () => {
 
       expect(accessibleName(control), describeControl(control)).not.toBe('')
       expect(
-        classes.some((name) => name.startsWith('focus-visible:outline')),
+        classes.some((name) => name.startsWith(FOCUS_UTILITY)),
         describeControl(control),
       ).toBe(true)
       expect(
