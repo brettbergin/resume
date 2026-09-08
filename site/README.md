@@ -50,16 +50,25 @@ pushes to `main` (plus a manual `workflow_dispatch`) and holds the Pages write
 permissions. Neither one's triggers fire the other's job, so a pull request is
 never able to deploy and a merge is never gated a second time by CI.
 
-CI does **not** run the Vitest suite today — lint, type-check and build only.
-Run `npm test` locally before opening a pull request.
+CI does **not** run the Vitest suite today — the `check` job is lint,
+type-check and build only. Run `npm test` locally before opening a pull
+request.
 
-**A green CI run says nothing about layout, viewport behaviour or
-accessibility.** There is no browser in the CI runner, so responsive and a11y
-behaviour is still verified by hand: see [Accessibility](#accessibility) for
-what *is* asserted mechanically and what is not, and
+A second job, `responsive`, installs Playwright's Chromium and runs
+`npm run test:e2e` (`site/e2e/responsive.spec.ts`) against a real browser at
+320, 375, 768 and 1440px, asserting `document.documentElement.scrollWidth ===
+clientWidth` (no horizontal overflow) and that the menu button and inline nav
+swap at the right width. It is a separate job from `check` because it needs a
+browser install the other steps don't.
+
+**A green CI run still says nothing about full layout, viewport behaviour or
+accessibility beyond that one suite.** Outside the four widths and the two
+assertions `responsive` covers, responsive and a11y behaviour is still
+verified by hand: see [Accessibility](#accessibility) for what *is* asserted
+mechanically and what is not, and
 [Mobile-first contract](#mobile-first-contract) below for the checklist to
-walk. A passing check means the code lints, compiles and builds — not that the
-site is mobile-friendly.
+walk. A passing check means the code lints, compiles, builds and clears that
+one browser-backed smoke suite — not that the site is fully mobile-friendly.
 
 ## Deployment
 
@@ -520,9 +529,16 @@ crosses it in one gesture); `Header.test.tsx` covers it.
 
 ### Manual check: widths, mobile menu, theme persistence
 
-Layout can't be asserted in CI (there's no browser in the build sandbox), so
-walk this list by hand when changing the shell. `npm run dev`, then in
-devtools responsive mode.
+Most of this matrix still needs a person and a browser, so walk this list by
+hand when changing the shell. `npm run dev`, then in devtools responsive
+mode. Two specific things are no longer only walked by hand: `site/e2e/responsive.spec.ts`
+runs in CI (the `responsive` job — see
+[Continuous integration](#continuous-integration)) against a real Chromium at
+320, 375, 768 and 1440px, asserting the no-horizontal-overflow check
+(`document.documentElement.scrollWidth === clientWidth`) and the menu-button /
+inline-nav swap at those same widths. Everything else below — text
+overlap/clipping, tap-target spacing by eye, contrast, real-device checks,
+Lighthouse, axe — is not covered by that suite and stays a person's check.
 
 **The matrix.** Every cell below is one pass: a width, walked over *every*
 section, in *both* palettes. Flip the palette with the in-page theme toggle, or
