@@ -110,7 +110,61 @@ const componentSources = shellSources.filter(
   (file) => !file.path.includes('.test.'),
 )
 
-describe.each(componentSources)('$path', ({ source }) => {
+/** Every `<a ...>` / `<button ...>` opening tag in a source, from the tag
+ * start to its closing `>`. Non-greedy so a later tag's `>` is never pulled
+ * into an earlier one; the tag name must be followed by whitespace so a bare
+ * `<a>`/`<button>` mentioned in prose inside a comment (ProjectCard.tsx,
+ * ThemeToggle.tsx both do this) is not mistaken for JSX; and the closing `>`
+ * must not be the tail of an arrow function's `=>` inside an inline handler
+ * (ExperienceEntry.tsx and friends open a button with `onClick={() => {`
+ * before their `className`), which would otherwise end the match early. */
+const openingTags = (source: string): { name: string; tag: string }[] =>
+  [...source.matchAll(/<(a|button)\b(?=\s)[\s\S]*?(?<!=)>/g)].map((match) => ({
+    name: match[1],
+    tag: match[0],
+  }))
+
+/** The two spellings that satisfy the 44px floor when found directly in a
+ * tag or a constant's own definition: the literal utility, or either of
+ * `src/styles.ts`'s exports that bundle it (`TAP_TARGET`/`TAP_TARGET_HEIGHT`
+ * both contain this as a substring). */
+const hasTapTargetFloor = (text: string): boolean =>
+  text.includes('min-h-11') || text.includes('TAP_TARGET')
+
+/** Every module-level `const NAME = ...` in a source, name to its own
+ * right-hand side text — not indented, so a component's local variables
+ * (inside its function body) are never picked up as shared constants. */
+const moduleConstants = (source: string): Map<string, string> =>
+  new Map(
+    [
+      ...source.matchAll(
+        /^const (\w+)[^\n=]*=\s*([\s\S]*?)(?=\n(?:const\s|function\s|export\s|\/\*|\/\/)|(?![\s\S]))/gm,
+      ),
+    ].map((match) => [match[1], match[2]]),
+)
+
+/** Whether `name` resolves to the tap-target floor, either directly or by
+ * following `${OTHER_NAME}` references to other module constants in the same
+ * file (HeroSection.tsx's `PRIMARY_CTA`/`SECONDARY_CTA` only reach
+ * `TAP_TARGET_HEIGHT` this way, through their shared `CTA`). `seen` guards
+ * against a reference cycle. */
+function constantHasTapTargetFloor(
+  name: string,
+  constants: Map<string, string>,
+  seen: Set<string>,
+): boolean {
+  if (seen.has(name)) return false
+  const definition = constants.get(name)
+  if (definition === undefined) return false
+  if (hasTapTargetFloor(definition)) return true
+
+  seen.add(name)
+  return [...definition.matchAll(/\$\{(\w+)\}/g)].some((match) =>
+    constantHasTapTargetFloor(match[1], constants, seen),
+  )
+}
+
+describe.each(componentSources)('$path', ({ source, path }) => {
   it('spaces flex/grid children by at least 0.5rem', () => {
     // Tap targets are 44px, and the issue asks for visible space between
     // them; a 4px gap leaves two of them close enough to mis-tap on a phone.
@@ -130,6 +184,40 @@ describe.each(componentSources)('$path', ({ source }) => {
     // none writes the utility itself.
     expect(source).not.toContain(FOCUS_UTILITY)
   })
+
+  it('gives every <a>/<button> a 44px tap target', () => {
+    // README's mobile-first contract: tap targets are at least 44x44
+    // (`min-h-11 min-w-11`). Non-interactive elements — SkillsSection.tsx's
+    // chip <li>s among them — are not tap targets and are not inspected here.
+    const constants = moduleConstants(source)
+
+    const untargeted = openingTags(source)
+      .filter(({ tag }) => {
+        if (hasTapTargetFloor(tag)) return false
+
+        const classNameRef = /className=\{(\w+)\}/.exec(tag)
+        if (!classNameRef) return true
+
+        return !constantHasTapTargetFloor(
+          classNameRef[1],
+          constants,
+          new Set(),
+        )
+      })
+      .map(({ name, tag }) => `${path}: <${name}> missing min-h-11: ${tag}`)
+
+    expect(untargeted).toEqual([])
+  })
+})
+
+it('found <a> and <button> tags to check', () => {
+  // Guards the tag scan itself: a refactor that stops matching any real tag
+  // (a markup rewrite, a stricter regex) must not turn the check above into
+  // a vacuous pass.
+  const tags = componentSources.flatMap((file) => openingTags(file.source))
+
+  expect(tags.some(({ name }) => name === 'a')).toBe(true)
+  expect(tags.some(({ name }) => name === 'button')).toBe(true)
 })
 
 /** Every `max-w-5xl` container the shell renders, as its full class string.
