@@ -76,11 +76,13 @@ describe('root README repo layout', () => {
     expect(rootReadme).not.toMatch(/^## Frontend$/m)
   })
 
-  it('leaves the resume itself reading from the top', () => {
-    // The section is an appendix: everything above it is the resume.
+  it('has a short intro above the Repo layout section', () => {
+    // The section above "Repo layout" used to be a full copy of resume.md;
+    // it's now a short pointer to that file instead, but it should still
+    // read as a real intro rather than being blank.
     const start = rootReadme.search(layoutHeading)
     expect(start).toBeGreaterThan(0)
-    expect(rootReadme.slice(0, start)).toMatch(/^# Brett Bergin/)
+    expect(rootReadme.slice(0, start).trim()).not.toBe('')
   })
 
   it('names the resume sources and their exports', () => {
