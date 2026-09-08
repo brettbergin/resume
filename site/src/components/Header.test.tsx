@@ -84,11 +84,18 @@ function mockViewport(initiallyWide: boolean) {
  * over the top. */
 beforeEach(() => {
   mockViewport(false)
+  // jsdom has no layout, so it never implements `scrollTo` — stub it so the
+  // scroll-lock's restore call doesn't log a "not implemented" warning in
+  // tests that don't care about it themselves.
+  window.scrollTo = vi.fn()
 })
 
 afterEach(() => {
   vi.unstubAllGlobals()
   document.body.style.overflow = ''
+  document.body.style.position = ''
+  document.body.style.top = ''
+  document.body.style.width = ''
 })
 
 describe('Header', () => {
@@ -260,6 +267,72 @@ describe('Header', () => {
 
     unmount()
     expect(document.body.style.overflow).toBe('')
+  })
+
+  it('pins the body with position:fixed at the current scroll position while open, and restores it on close', async () => {
+    const user = userEvent.setup()
+    Object.defineProperty(window, 'scrollY', {
+      configurable: true,
+      value: 240,
+    })
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    render(<Header />)
+
+    expect(document.body.style.position).toBe('')
+    expect(document.body.style.top).toBe('')
+    expect(document.body.style.width).toBe('')
+
+    await openMenu(user)
+    expect(document.body.style.position).toBe('fixed')
+    expect(document.body.style.top).toBe('-240px')
+    expect(document.body.style.width).toBe('100%')
+
+    await user.keyboard('{Escape}')
+    expect(document.body.style.position).toBe('')
+    expect(document.body.style.top).toBe('')
+    expect(document.body.style.width).toBe('')
+    expect(scrollToSpy).toHaveBeenCalledWith(0, 240)
+  })
+
+  it('restores the body position lock to its prior values, not just clearing them', async () => {
+    const user = userEvent.setup()
+    Object.defineProperty(window, 'scrollY', {
+      configurable: true,
+      value: 120,
+    })
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    document.body.style.position = 'relative'
+    document.body.style.top = '10px'
+    document.body.style.width = '90%'
+    render(<Header />)
+
+    await openMenu(user)
+    expect(document.body.style.position).toBe('fixed')
+
+    await user.keyboard('{Escape}')
+    expect(document.body.style.position).toBe('relative')
+    expect(document.body.style.top).toBe('10px')
+    expect(document.body.style.width).toBe('90%')
+  })
+
+  it('restores the body position lock and scroll position when unmounted while open', async () => {
+    const user = userEvent.setup()
+    Object.defineProperty(window, 'scrollY', {
+      configurable: true,
+      value: 360,
+    })
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const { unmount } = render(<Header />)
+
+    await openMenu(user)
+    expect(document.body.style.position).toBe('fixed')
+    expect(document.body.style.top).toBe('-360px')
+
+    unmount()
+    expect(document.body.style.position).toBe('')
+    expect(document.body.style.top).toBe('')
+    expect(document.body.style.width).toBe('')
+    expect(scrollToSpy).toHaveBeenCalledWith(0, 360)
   })
 
   /*
