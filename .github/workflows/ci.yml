@@ -51,7 +51,7 @@ jobs:
       # below gates on this instead of the trigger.
       - name: Determine changed paths
         id: changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             relevant:
@@ -124,7 +124,7 @@ jobs:
       # touches nothing relevant.
       - name: Determine changed paths
         id: changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             relevant:
