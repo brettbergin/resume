@@ -152,6 +152,10 @@ describe('ExperienceSection', () => {
       expect(classes).toContain('focus-visible:outline-2')
       expect(classes).toContain('focus-visible:outline-offset-2')
       expect(classes).toContain('focus-visible:outline-accent')
+
+      // The dark-mode halo rides alongside the ring, never in place of it.
+      expect(classes).toContain('hover:glow-ring')
+      expect(classes).toContain('focus-visible:glow-ring')
     })
   })
 

@@ -64,7 +64,7 @@ function sectionBody(section: PageSection) {
     default:
       return (
         <>
-          <h2 id={headingId} className="text-2xl font-medium">
+          <h2 id={headingId} className="glow-text text-2xl font-medium">
             {section.label}
           </h2>
           <p className="mt-2 text-base text-muted">Coming soon.</p>

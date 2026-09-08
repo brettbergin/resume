@@ -12,17 +12,20 @@
   /* Self-hosted via @fontsource-variable/jetbrains-mono (imported in main.tsx). */
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 
-  /* Brand ramp — the single source of accent colors. */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  /* Brand ramp — the single source of accent colors. One acid-green hue
+     (110.55deg, the hue of #39ff14) stepped in lightness, so the bright
+     steps read as the radioactive dark-mode accent and the dark steps are
+     printable enough to carry light-mode text. */
+  --color-brand-50: #eafee7;
+  --color-brand-100: #cdfdc4;
+  --color-brand-200: #a2fc92;
+  --color-brand-300: #76ff5c;
+  --color-brand-400: #39ff14;
+  --color-brand-500: #25eb00;
+  --color-brand-600: #20c002;
+  --color-brand-700: #1b9504;
+  --color-brand-800: #177605;
+  --color-brand-900: #125705;
 
   /* Neutral ramp — surfaces, text and borders all come from here.
      Intentionally replaces Tailwind's default `neutral` with a cool gray. */
@@ -36,6 +39,11 @@
   --color-neutral-700: #374151;
   --color-neutral-800: #1f2937;
   --color-neutral-900: #111827;
+  /* Two extra rungs below the cool gray, for the ink-black dark palette: the
+     page background and the barely-lifted surface sitting on it. Steps rather
+     than literals in `.dark`, so every semantic token still aliases a ramp. */
+  --color-neutral-850: #141414;
+  --color-neutral-950: #0a0a0a;
 
   /* Radii */
   --radius-card: 0.75rem;
@@ -62,21 +70,304 @@
      card's boundary needs 3:1 is a human review call about the design, not a
      token this file can decide. */
   --color-border-strong: var(--color-neutral-500);
-  --color-accent: var(--color-brand-700);
+  --color-accent: var(--color-brand-800);
   --color-accent-contrast: var(--color-white);
+  /* The accent carried with alpha. Used *only* as a `box-shadow` /
+     `text-shadow` color, never as a fill or a text color, so it is exempt
+     from the contrast pairs: a glow that fails 4.5:1 is a dim glow, not
+     unreadable text. Light mode declares it for token parity but never
+     paints it — the glow utilities are scoped to `.dark`. */
+  --color-glow: color-mix(in srgb, var(--color-brand-800) 32%, transparent);
+  /* The bright end of the specular gradient that sweeps a tilted card. */
+  --color-accent-dim: var(--color-brand-600);
 }
 
 /* Dark palette: same semantic tokens, dark values. */
 .dark {
-  --color-bg: var(--color-neutral-900);
-  --color-surface: var(--color-neutral-800);
+  --color-bg: var(--color-neutral-950);
+  --color-surface: var(--color-neutral-850);
   --color-text: var(--color-neutral-50);
   --color-muted: var(--color-neutral-400);
   --color-border: var(--color-neutral-700);
-  /* 6.99:1 on bg, 5.78:1 on surface. */
+  /* 7.80:1 on bg, 7.26:1 on surface. */
   --color-border-strong: var(--color-neutral-400);
   --color-accent: var(--color-brand-400);
   --color-accent-contrast: var(--color-neutral-900);
+  /* Brighter and further out than the light value: this is the one that is
+     actually painted, as the halo behind headings, hovered cards and the
+     active nav link. */
+  --color-glow: color-mix(in srgb, var(--color-brand-400) 55%, transparent);
+  --color-accent-dim: var(--color-brand-200);
+}
+
+/*
+ * The two glow treatments, as named utilities rather than bracketed arbitrary
+ * values in components: test/layout-contract.test.ts forbids arbitrary widths
+ * and font sizes in the shell's source, and a blur radius written inline would
+ * be the same kind of magic number in the same place. Naming them here also
+ * makes them greppable — one definition to change when the halo is retuned.
+ *
+ * Both are dark-only. The light palette is the printable variant: same accent
+ * hue, no bloom. So each rule is scoped to `&:where(.dark, .dark *)`, the same
+ * predicate `@custom-variant dark` above uses, which means the utility can be
+ * written unprefixed in a component and simply paints nothing in light mode.
+ *
+ * Deliberately nested inside `@utility` rather than written as a top-level
+ * `.dark { … }` block: src/theme-contrast.test.ts finds the *first* `.dark {`
+ * in this file and reads to the first `}` as the dark palette, so a second
+ * such block would be parsed as the palette and take the whole suite with it.
+ *
+ * Neither is a focus ring. The ring is FOCUS_RING in src/styles.ts and stays
+ * an `outline`; `glow-ring` is a `box-shadow`, so under `focus-visible:` the
+ * two compose instead of one replacing the other.
+ */
+@utility glow-text {
+  &:where(.dark, .dark *) {
+    text-shadow:
+      0 0 12px var(--color-glow),
+      0 0 32px var(--color-glow);
+  }
+}
+
+@utility glow-ring {
+  &:where(.dark, .dark *) {
+    box-shadow:
+      0 0 0 1px var(--color-accent),
+      0 0 24px var(--color-glow);
+  }
+}
+
+/*
+ * The hover sweep: a band of accent light that crosses a control once, left to
+ * right, when it is hovered or keyboard-focused. Named here for the same
+ * reason the glows are — test/layout-contract.test.ts keeps magic numbers out
+ * of the shell's source, and a 600ms duration and a five-stop gradient written
+ * into a class list would be exactly that.
+ *
+ * Unlike the glows this is *not* scoped to `.dark`. The bloom is the dark
+ * palette's signature; the sweep is a motion affordance, and the light palette
+ * gets the same gesture in the same hue at its own (dimmer) accent steps.
+ *
+ * The bar is a `::before` rather than a background on the control itself, so
+ * the control's own `outline` — FOCUS_RING in src/styles.ts, drawn outside the
+ * border box with `outline-offset-2` — is untouched by the `overflow-hidden`
+ * the control needs to clip the bar. `position: relative` is declared here so
+ * a component only has to add `overflow-hidden` alongside the utility.
+ *
+ * `z-index: -1` with `isolation: isolate` puts the bar above the control's own
+ * background and below its label: an absolutely positioned pseudo-element at
+ * `z-index: auto` paints over the text, which would wash out the label for the
+ * whole 600ms. The isolation keeps that negative index inside the control
+ * rather than dropping it behind an ancestor's background.
+ */
+@utility sweep {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    /* The control is often a link that *is* its own hit area; the bar must
+       never be what the pointer lands on. */
+    pointer-events: none;
+    /* Off to the left at rest, so nothing is visible until the sweep runs. */
+    transform: translateX(-100%);
+    /* The rest state, so this duration is the duration of the *return*: none.
+       Losing hover snaps the bar back off-canvas instead of animating it back
+       across the label, which would be a second crossing, right to left, on
+       every pointer-out — not the single left-to-right crossing the treatment
+       is and site/README.md documents. The 600ms lives on the two clauses
+       below, which are the crossing itself. */
+    transition: transform 0s ease-out;
+    /* The bright core of the band. A palette-scoped local, not a palette
+       token: the two palettes need *different* stops here, and every semantic
+       token in @theme/.dark is a color one of the contrast pairs may read.
+       Light is the default; the `.dark` override follows.
+
+       Light deliberately uses the alpha'd glow rather than the specular step.
+       The light primary CTA is `bg-accent` with a white label, and white on
+       brand-800 has only 5.79:1 to give — 4.75:1 once that button's own
+       `hover:opacity-90` composites it against the page. A core stop
+       *brighter* than the fill eats that margin: brand-600 at this opacity
+       lands the hovered label at 3.60:1, under the 4.5:1 floor for 16px text.
+       `--color-glow` is the accent carried at alpha, so over a fill that *is*
+       the accent it composites to the fill itself (4.75:1 kept) while still
+       reading as a band over the outlined CTAs and the nav links, whose
+       background is the page. Measured over the bar's peak: light 4.75:1
+       (primary label), 4.92:1 (accent label), 15.09:1 (text label); dark
+       10.90:1, 5.34:1, 6.93:1. */
+    --sweep-core: var(--color-glow);
+    /* A soft band, brightest at its centre, feathered to nothing at both
+       edges. Both stops are palette colors: the alpha'd glow for the
+       shoulders, the core above for the centre. */
+    background: linear-gradient(
+      75deg,
+      transparent 0%,
+      var(--color-glow) 40%,
+      var(--sweep-core) 50%,
+      var(--color-glow) 60%,
+      transparent 100%
+    );
+    /* Light enough to read as a highlight passing over the control rather
+       than a second fill covering it. */
+    opacity: 0.35;
+  }
+
+  /* Dark keeps the specular step: the dark primary CTA's label is
+     `--color-accent-contrast` on brand-400, which holds 10.90:1 across the
+     band, so the brighter core costs nothing there. Same predicate the glow
+     utilities use; equal specificity to the rule above, so it wins on source
+     order and must stay after it. */
+  &:where(.dark, .dark *)::before {
+    --sweep-core: var(--color-accent-dim);
+  }
+
+  /* Hover only where hovering is a thing the input can do. Mobile Safari and
+     Android Chrome apply `:hover` to whatever you last tapped, so an ungated
+     clause runs the whole 600ms band across a hero CTA on a tap — the case
+     the treatment explicitly excludes, and the reason every Tailwind `hover:`
+     variant in this project is itself compiled inside this query. The tilt's
+     half of that exclusion is src/useTilt.ts's `(hover: none)` early return.
+
+     `:focus-visible` stays outside the query on purpose: a keyboard is not a
+     hovering pointer, and a phone with a Bluetooth keyboard matches
+     `(hover: none)` while still moving focus. */
+  @media (hover: hover) {
+    &:hover::before {
+      transform: translateX(100%);
+      transition-duration: 600ms;
+    }
+  }
+
+  &:focus-visible::before {
+    transform: translateX(100%);
+    transition-duration: 600ms;
+  }
+}
+
+/*
+ * The card half of the 3D tilt. src/useTilt.ts writes only four custom
+ * properties on the element — `--tilt-x`/`--tilt-y` for the rotation and
+ * `--spec-x`/`--spec-y` for the centre of the specular highlight — and
+ * everything that turns those numbers into a picture lives here: the
+ * perspective, the settle-back transition, the gradient. Same reason the glow
+ * utilities are named rather than bracketed — test/layout-contract.test.ts
+ * treats a magic number written into a component's class list as the thing to
+ * keep out of the shell's source, and `perspective(800px)` is one.
+ *
+ * The four properties are declared on the utility itself, so a card is correct
+ * before the first pointer event and stays correct where the hook deliberately
+ * does nothing at all: a touch screen, or a reader who asked for reduced
+ * motion. At the rest values the transform is an identity — 0deg on both axes —
+ * so nothing moves and nothing is added to the page's scrollable width, which
+ * is what e2e/responsive.spec.ts asserts at 320/375/768/1440.
+ *
+ * `transform-style` is left flat on purpose: the rotation is the card's own,
+ * nothing inside it needs a 3D space of its own, and a preserved one only
+ * costs the card's text its subpixel rendering.
+ */
+@utility tilt-card {
+  /* Rest: no rotation, highlight dead centre. */
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --spec-x: 50%;
+  --spec-y: 50%;
+
+  position: relative;
+  /* A stacking context of the card's own, so the specular below can sit at a
+     negative z-index — above this card's background, underneath its text —
+     whether or not the transform is painting. */
+  isolation: isolate;
+  transform: perspective(800px) rotateX(var(--tilt-y)) rotateY(var(--tilt-x));
+  /* Long enough that `pointerleave` settles back rather than snapping. On
+     `pointermove` the property is rewritten continuously, so this reads as
+     the tilt lagging the cursor slightly. */
+  transition: transform 400ms ease-out;
+
+  /* The specular: a soft pool of accent light centred wherever the pointer
+     is. Low opacity and behind the content, so it is a sheen on the surface
+     and not a wash over the words; `pointer-events: none` so the project
+     card, which *is* its link, stays clickable through it. Clipped to the
+     card's own corner radius. */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: var(--radius-card);
+    background: radial-gradient(
+      circle at var(--spec-x) var(--spec-y),
+      var(--color-accent-dim),
+      transparent 60%
+    );
+    opacity: 0.1;
+    pointer-events: none;
+  }
+}
+
+/*
+ * The one place motion is switched off for a visitor who asked for less of it.
+ * Every animated thing the rice adds is named here rather than in its own
+ * utility, so the whole reduced-motion contract is one greppable block —
+ * test/rice-contract.test.ts reads it as text, and a new animation that
+ * forgets this block is a visible omission rather than a missing nested rule
+ * three hundred lines away.
+ *
+ * Deliberately *unlayered* and outside `@layer base`. `@utility` output lands
+ * in Tailwind's `utilities` layer, and a layered rule always loses to a later
+ * layer no matter how specific it is: the same overrides written inside
+ * `@layer base` would be beaten by `tilt-card`'s own `transform`. Unlayered
+ * rules outrank every layer, so these win. It is also outside `@theme` and
+ * `.dark`, so src/theme-contrast.test.ts's brace-counting palette parser —
+ * which reads the first block of each to its first `}` — never sees it.
+ *
+ * The glow is untouched on purpose. A `text-shadow` and a `box-shadow` are
+ * static paint, not movement; switching them off would take the dark palette's
+ * whole identity away from a reader who only asked not to be moved.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    /* Nav links are same-page anchors: jump straight there. */
+    scroll-behavior: auto;
+  }
+
+  /* Collapse every transition in the page, the rice's and the shell's alike,
+     to a duration too short to read as movement. Not `none`, so a state that
+     is only reachable mid-transition cannot get stuck. */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms;
+  }
+
+  /* No rotation: the card is flat, and there is nothing left for the
+     `transform 400ms` above to animate. src/useTilt.ts also no-ops under this
+     same query, so the custom properties are never rewritten either — this is
+     the belt to that hook's braces, and covers a preference changed after the
+     hook has already attached. */
+  .tilt-card {
+    transform: none;
+  }
+
+  /* The specular parks dead centre. Declared on the pseudo-element rather than
+     on the card, because the hook writes `--spec-x`/`--spec-y` as an inline
+     style and an inline style beats any stylesheet rule on the same element;
+     the `::after` inherits those values, so overriding them *there* is what
+     actually holds the highlight still. */
+  .tilt-card::after {
+    --spec-x: 50%;
+    --spec-y: 50%;
+  }
+
+  /* The sweep bar stays parked off-canvas and never translates, in or out.
+     The control keeps its own hover colours and its focus ring. */
+  .sweep::before,
+  .sweep:hover::before,
+  .sweep:focus-visible::before {
+    transform: translateX(-100%);
+  }
 }
 
 @layer base {
@@ -92,12 +383,9 @@
     scroll-behavior: smooth;
   }
 
-  /* Respect a reduced-motion preference: jump straight to the section. */
-  @media (prefers-reduced-motion: reduce) {
-    :root {
-      scroll-behavior: auto;
-    }
-  }
+  /* The reduced-motion counterpart of `scroll-behavior` above lives with the
+     rest of that contract, in the single unlayered media block earlier in
+     this file. */
 
   /* Anchor targets stop below the sticky header instead of underneath it —
      the header height plus a little breathing room above the heading. */

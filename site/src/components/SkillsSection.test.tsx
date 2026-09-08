@@ -149,6 +149,24 @@ describe('SkillsSection', () => {
     }
   })
 
+  it('tilts every group card toward the pointer', () => {
+    renderSection()
+
+    for (const group of allGroups) {
+      const card = screen.getByRole('heading', {
+        level: 4,
+        name: group.label,
+      }).parentElement
+
+      // `tilt-card` is the index.css utility that owns the perspective, the
+      // settle-back transition and the specular gradient; src/useTilt.ts
+      // writes the custom properties it reads, and no-ops on a touch screen
+      // or under reduced motion, where the utility's own rest values keep the
+      // card flat.
+      expect(classesOf(card)).toContain('tilt-card')
+    }
+  })
+
   it('sizes every chip as a comfortable future tap target', () => {
     renderSection()
 

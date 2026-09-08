@@ -116,6 +116,15 @@ describe('HeroSection', () => {
       expect(classes).toContain('w-full')
       expect(classes).toContain('sm:w-auto')
       expect(classes).toContain('focus-visible:outline-accent')
+      // Additive to that ring, not a replacement for it: `glow-ring` is a
+      // box-shadow and only paints inside `.dark`.
+      expect(classes).toContain('hover:glow-ring')
+      expect(classes).toContain('focus-visible:glow-ring')
+      // The hover sweep and the clip that keeps its bar inside the pill.
+      // `overflow-hidden` clips the bar, not the focus ring above it: that
+      // ring is an outline, drawn outside the border box.
+      expect(classes).toContain('sweep')
+      expect(classes).toContain('overflow-hidden')
     }
   })
 

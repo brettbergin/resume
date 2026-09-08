@@ -17,8 +17,11 @@
  * an <h2>.
  */
 
+import { useRef } from 'react'
+
 import { competencies, technicalSkills } from '../data/resume.ts'
 import type { SkillGroup } from '../data/types.ts'
+import { useTilt } from '../useTilt.ts'
 
 /** A chip: non-interactive today, but already sized as a comfortable tap
  * target (`min-h-8` is 2rem tall, `px-3` is 0.75rem either side) so making one
@@ -39,6 +42,42 @@ function groupHeadingId(label: string): string {
   return `skill-group-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
 }
 
+/** A group card. `tilt-card` is the index.css utility that turns the custom
+ * properties `useTilt` writes into the rotation and the specular highlight; it
+ * declares its own rest values, so a card that never sees a pointer — a phone,
+ * reduced motion — renders flat. */
+const GROUP_CARD =
+  'tilt-card flex flex-col gap-3 rounded-card border border-border p-4'
+
+/** One skill group. Its own component only because the tilt needs a ref per
+ * card and a hook cannot be called in a loop body: the markup is the same
+ * heading plus `aria-labelledby` chip list it has always been. */
+function SkillGroupCard({ group }: { group: SkillGroup }) {
+  const card = useRef<HTMLDivElement>(null)
+  useTilt(card)
+
+  const headingId = groupHeadingId(group.label)
+
+  return (
+    <div ref={card} className={GROUP_CARD}>
+      <h4 id={headingId} className="text-base font-medium text-muted">
+        {group.label}
+      </h4>
+
+      {/* `flex-wrap` with a 0.5rem gap: a long group like
+          Specializations takes as many lines as it needs at 320px
+          instead of being clipped or widening the page. */}
+      <ul role="list" aria-labelledby={headingId} className="flex flex-wrap gap-2">
+        {group.items.map((item) => (
+          <li key={item} className={CHIP}>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /** A titled block of skill groups: `competencies` or `technicalSkills`. */
 function SkillGroups({
   title,
@@ -52,31 +91,9 @@ function SkillGroups({
       <h3 className="text-lg font-medium">{title}</h3>
 
       <div className={GROUP_GRID}>
-        {groups.map((group) => {
-          const headingId = groupHeadingId(group.label)
-
-          return (
-            <div
-              key={group.label}
-              className="flex flex-col gap-3 rounded-card border border-border p-4"
-            >
-              <h4 id={headingId} className="text-base font-medium text-muted">
-                {group.label}
-              </h4>
-
-              {/* `flex-wrap` with a 0.5rem gap: a long group like
-                  Specializations takes as many lines as it needs at 320px
-                  instead of being clipped or widening the page. */}
-              <ul role="list" aria-labelledby={headingId} className="flex flex-wrap gap-2">
-                {group.items.map((item) => (
-                  <li key={item} className={CHIP}>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )
-        })}
+        {groups.map((group) => (
+          <SkillGroupCard key={group.label} group={group} />
+        ))}
       </div>
     </div>
   )
@@ -91,7 +108,7 @@ export function SkillsSection({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <h2 id={headingId} className="text-2xl font-medium">
+      <h2 id={headingId} className="glow-text text-2xl font-medium">
         {heading}
       </h2>
 

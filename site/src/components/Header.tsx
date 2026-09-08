@@ -143,7 +143,28 @@ export function Header({ children }: { children?: ReactNode }) {
             between them to be hittable. */}
         <div className="flex items-center gap-2">
           {/* Inline nav from `md` up; below that the same links live in the
-              panel, so this is hidden rather than squeezed. */}
+              panel, so this is hidden rather than squeezed.
+
+              The bloom on these links is a hover/focus affordance, not an
+              in-view state: there is no active-section tracking anywhere in
+              this app (no IntersectionObserver, no scroll listener), so
+              nothing here knows which section the reader is looking at.
+              Scroll-spy is deliberately out of scope — until it exists,
+              `glow-text` is applied under `hover:`/`focus-visible:` only, and
+              the sweep is the same one the hero CTAs use.
+
+              `text-accent` is applied under both of those states, not just
+              hover, because it is the label's contrast over the sweep bar:
+              `text-muted` over the band's peak measures 4.11:1 in light and
+              2.85:1 in dark, under the 4.5:1 floor, while the accent clears it
+              at 4.92:1 and 5.34:1. Whatever state runs the sweep has to change
+              the label with it.
+
+              `overflow-hidden` clips the sweep to the pill, which also trims
+              the outer edge of that halo — the intended reading, since the
+              bloom should stay inside the link's own shape in a 56px bar. The
+              focus ring is an `outline` drawn outside the border box, so it
+              is not clipped. */}
           <nav
             aria-label="Primary"
             className="hidden md:flex md:items-center md:gap-2"
@@ -152,7 +173,7 @@ export function Header({ children }: { children?: ReactNode }) {
               <a
                 key={section.id}
                 href={`#${section.id}`}
-                className={`inline-flex ${TAP_TARGET} items-center justify-center rounded-pill px-3 text-sm text-muted hover:text-accent ${FOCUS_RING}`}
+                className={`inline-flex ${TAP_TARGET} items-center justify-center overflow-hidden rounded-pill px-3 text-sm text-muted sweep hover:text-accent hover:glow-text focus-visible:text-accent focus-visible:glow-text ${FOCUS_RING}`}
               >
                 {section.label}
               </a>

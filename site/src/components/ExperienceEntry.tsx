@@ -125,7 +125,7 @@ export function ExperienceEntry({ experience }: { experience: Experience }) {
           onClick={() => {
             setExpanded((wasExpanded) => !wasExpanded)
           }}
-          className={`mt-3 inline-flex ${TAP_TARGET_HEIGHT} items-center rounded-pill border border-border-strong px-4 text-base text-text hover:text-accent ${FOCUS_RING}`}
+          className={`mt-3 inline-flex ${TAP_TARGET_HEIGHT} items-center rounded-pill border border-border-strong px-4 text-base text-text hover:text-accent hover:glow-ring focus-visible:glow-ring ${FOCUS_RING}`}
         >
           {expanded ? 'Show less' : `Show ${hiddenCount} more`}
         </button>

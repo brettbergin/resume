@@ -55,7 +55,7 @@ export const site = {
   /** `theme-color`, one per palette, so mobile browser chrome matches the
    * page instead of guessing. These are `--color-bg` as each palette in
    * `src/index.css` resolves it: `--color-white` for light,
-   * `--color-neutral-900` for dark. */
+   * `--color-neutral-950` for dark. */
   themeColorLight: '#ffffff',
-  themeColorDark: '#111827',
+  themeColorDark: '#0a0a0a',
 } as const
