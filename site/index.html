@@ -74,43 +74,13 @@
          has already reached. -->
     <meta name="theme-color" content="#ffffff" />
     <!--
-      Theme applied before the first paint. Inline and render-blocking on
-      purpose: the app bundle is a module script and therefore deferred, so
-      applying the theme from JS alone paints the light palette (the CSS
-      default) first and flashes it at everyone who stored `dark`.
-
-      Mirrors getInitialTheme() in src/theme.ts — a valid stored choice wins,
-      anything else falls back to the OS preference — and swallows the
-      localStorage access that Safari's private mode throws on.
-      test/index-html.test.ts keeps the key, the query and the dark
-      theme-color in step with their sources.
+      Pre-paint theme script goes here, generated and injected into <head> by
+      the themeScript() Vite plugin (vite/theme-script.ts) via its
+      transformIndexHtml hook, at both `vite build` and `vite dev`. It is not
+      hand-written in this file: an inline <script> can't import, so
+      vite/theme-script.ts builds it from src/theme.ts's and
+      src/data/site.ts's actual exports instead of retyping them here.
     -->
-    <script>
-      (function () {
-        var stored = null
-        try {
-          stored = window.localStorage.getItem('resume-theme')
-        } catch (error) {
-          // Storage unavailable; fall through to the OS preference.
-        }
-        if (
-          stored === 'dark' ||
-          (stored !== 'light' &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches)
-        ) {
-          document.documentElement.classList.add('dark')
-          // The same swap applyTheme() makes, for the same reason the class is
-          // set here: the chrome has to be right on the first paint, not once
-          // the deferred bundle arrives. Only the dark value is written —
-          // light is already what the tag above carries. The colour is
-          // duplicated from site.ts because an inline script cannot import.
-          var themeColor = document.querySelector('meta[name="theme-color"]')
-          if (themeColor) {
-            themeColor.setAttribute('content', '#111827')
-          }
-        }
-      })()
-    </script>
   </head>
   <body>
     <div id="root"></div>

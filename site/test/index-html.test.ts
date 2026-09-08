@@ -2,46 +2,40 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { site } from '../src/data/site.ts'
+import { DARK_QUERY, getInitialTheme, THEME_STORAGE_KEY } from '../src/theme.ts'
+import { themeScriptBody } from '../vite/theme-script.ts'
 
 /*
- * Pins the one piece of behaviour that cannot live in a component: the theme
- * has to be on <html> before the first paint.
+ * index.html's own source only carries a placeholder comment: the pre-paint
+ * theme script is generated and injected into <head> by vite/theme-script.ts's
+ * themeScript() plugin, at both `vite build` and `vite dev`. An inline
+ * <script> can't import, so that plugin builds the script from src/theme.ts's
+ * and src/data/site.ts's actual exports rather than it being hand-typed here.
  *
- * `src/main.tsx` is loaded as a module script and module scripts are
- * deferred, so the browser is free to paint the parsed document — white,
- * since the light palette is the CSS default and `dark` is only ever added by
- * JS — before the bundle runs. Applying the theme from the bundle alone
- * therefore flashes the light palette at every visitor who stored `dark`, for
- * as long as the bundle takes to arrive. The fix is a render-blocking inline
- * script in <head>, and the thing that rots is its duplicated storage key and
- * media query, so those are asserted against `src/theme.ts` itself.
- *
- * These read the HTML source rather than executing it: the point is what the
- * browser is handed before any of our JS runs.
+ * `html` below splices that same generator's output into the placeholder, so
+ * every assertion that follows runs against the real build-time output
+ * instead of a second copy pasted into this test file.
  */
 
 const here = dirname(fileURLToPath(import.meta.url))
 const siteDir = resolve(here, '..')
 
-const html = readFileSync(resolve(siteDir, 'index.html'), 'utf8')
-const themeSource = readFileSync(resolve(siteDir, 'src/theme.ts'), 'utf8')
+const rawHtml = readFileSync(resolve(siteDir, 'index.html'), 'utf8')
+
+const placeholderComment = /<!--\s*Pre-paint theme script goes here[\s\S]*?-->/
+const generatedScript = themeScriptBody()
+const html = rawHtml.replace(
+  placeholderComment,
+  `<script>${generatedScript}</script>`,
+)
 
 const head = html.slice(html.indexOf('<head'), html.indexOf('</head>'))
 
-/** The key as `src/theme.ts` declares it, read out of the source rather than
- * imported: this file type-checks under the node project (no DOM lib) and
- * theme.ts is a browser module. Either half of the pair moving breaks the
- * assertions below. */
-const storageKey = /THEME_STORAGE_KEY = '([^']+)'/.exec(themeSource)?.[1]
-
-/** Likewise the media query theme.ts falls back to. */
-const darkQuery = /DARK_QUERY = '([^']+)'/.exec(themeSource)?.[1]
-
 /** The `theme-color` tag and the colour it carries out of the parser, before
- * the script below has had a chance to swap it. */
+ * the injected script has had a chance to swap it. */
 const themeColorTag = /<meta\b[^>]*name="theme-color"[^>]*>/.exec(head)?.[0]
 const themeColorContent = /content="([^"]*)"/.exec(themeColorTag ?? '')?.[1]
 
@@ -53,89 +47,29 @@ const htmlLang = /<html\b[^>]*\blang="([^"]*)"/.exec(html)?.[1]
  * React fills it at runtime — so this drops the tag pair and nothing else. */
 const outsideRoot = html.replace(/<div\b[^>]*id="root"[^>]*>[\s\S]*?<\/div>/, '')
 
-/** The inline (`src`-less) scripts in <head>, as their bodies. */
-const inlineHeadScripts = [
-  ...head.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g),
-].map((match) => ({ attributes: match[1], body: match[2] }))
-
-const themeScript = inlineHeadScripts.find((script) =>
-  script.body.includes(storageKey ?? '\u0000'),
-)
-
 describe('index.html', () => {
-  it('applies the stored theme from an inline script in <head>', () => {
-    expect(themeScript).toBeDefined()
-    // A theme applied after the document is painted is a flash, not a theme:
-    // this script must block rendering, so no `type=module`, `defer` or
-    // `async`.
-    expect(themeScript?.attributes).not.toMatch(/module|defer|async/)
+  it('carries only the placeholder in source; the real script is generated', () => {
+    // vite/theme-script.ts generates and injects the script at build/dev
+    // time; the checked-in source carries nothing but a comment pointing at
+    // it. `html` (used by every other test below) is `rawHtml` with the
+    // generator's actual output spliced into that comment's place.
+    expect(rawHtml).not.toContain("classList.add('dark')")
+    expect(rawHtml).toContain('vite/theme-script.ts')
+    expect(head).toContain(generatedScript)
   })
 
-  it('runs the theme script before the app bundle', () => {
-    // The bundle re-applies the same theme; if it got there first the inline
-    // script would be pointless. The `\0` keeps a missing script from
-    // matching at position 0 and passing vacuously.
-    const themeAt = html.indexOf(themeScript?.body ?? '\u0000')
-    const bundleAt = html.indexOf('src="/src/main.tsx"')
-
-    expect(themeAt).toBeGreaterThan(-1)
-    expect(bundleAt).toBeGreaterThan(themeAt)
+  it('inlines a script reading the same storage key and media query as theme.ts', () => {
+    expect(generatedScript).toContain(THEME_STORAGE_KEY)
+    expect(generatedScript).toContain(DARK_QUERY)
   })
 
-  it('reads the same storage key as theme.ts', () => {
-    // Duplicated on purpose — the inline script cannot import — so drift is
-    // what breaks it. Both halves are read from their own file.
-    expect(storageKey).toBe('resume-theme')
-    expect(themeScript?.body).toContain(storageKey)
-  })
-
-  it('falls back to the same media query as theme.ts', () => {
-    expect(darkQuery).toBe('(prefers-color-scheme: dark)')
-    expect(themeScript?.body).toContain(darkQuery)
-  })
-
-  it('sets the same theme-color literals as site.ts', () => {
-    // The chrome colour has to be right on the first paint too, so the script
-    // makes the swap applyTheme() makes — with the colours typed out, since an
-    // inline script cannot import. Both halves are read from their own file,
-    // so either one moving alone fails here.
+  it('carries the light theme-color literal the generated script swaps out of', () => {
+    // The injected script only ever writes the dark value (see
+    // test/theme-script.test.ts); light has to already be what the parsed
+    // tag carries.
+    expect(themeColorTag).toBeDefined()
     expect(themeColorContent).toBe(site.themeColorLight)
-    expect(themeScript?.body).toContain(site.themeColorDark)
-    // Light needs no write: it is what the parsed tag already carries. A
-    // literal light value inside the script would mean the two disagree about
-    // which one is the default.
-    expect(themeScript?.body).not.toContain(site.themeColorLight)
-  })
-
-  it('sets theme-color in the branch that applies the dark class', () => {
-    // Same decision, same place. Split apart, the class and the chrome can
-    // disagree about which theme the visitor asked for.
-    const body = themeScript?.body ?? ''
-    const classAt = body.indexOf("classList.add('dark')")
-    const colorAt = body.indexOf(site.themeColorDark)
-
-    expect(classAt).toBeGreaterThan(-1)
-    expect(colorAt).toBeGreaterThan(classAt)
-    // No block has closed in between, so the write is still inside the `if`
-    // that added the class rather than after it.
-    expect(body.slice(classAt, colorAt)).not.toContain('}')
-  })
-
-  it('declares the theme-color tag before the script that rewrites it', () => {
-    // querySelector only finds an element the parser has already reached, and
-    // this script runs where it sits.
-    const metaAt = head.indexOf(themeColorTag ?? '\u0000')
-
-    expect(metaAt).toBeGreaterThan(-1)
-    expect(head.indexOf(themeScript?.body ?? '\u0000')).toBeGreaterThan(metaAt)
-  })
-
-  it('applies the dark class only, and only for dark', () => {
-    // Light is the CSS default, so there is nothing to add for it; the script
-    // adds `dark` and touches nothing else.
-    expect(themeScript?.body).toMatch(/classList\.add\('dark'\)/)
-    expect(themeScript?.body).toContain("'dark'")
-    expect(themeScript?.body).toContain("'light'")
+    expect(generatedScript).toContain(site.themeColorDark)
   })
 
   it('declares a language on <html>', () => {
@@ -157,11 +91,87 @@ describe('index.html', () => {
     expect(outsideRoot).not.toMatch(/<button\b/)
     expect(outsideRoot).not.toMatch(/\btabindex=/)
   })
+})
 
-  it('tolerates localStorage throwing', () => {
-    // Safari in private mode throws on the property access itself, and a
-    // theme lookup must never be why the page fails to render. Matches
-    // getStoredTheme()'s own try/catch.
-    expect(themeScript?.body).toMatch(/try\s*\{[\s\S]*catch/)
+/*
+ * Behavioral parity: the generated script and getInitialTheme() must agree on
+ * whether the `dark` class ends up applied, for every combination of a stored
+ * value and an OS preference. theme-script.test.ts and theme.test.ts each pin
+ * the two in isolation (same storage key, same media query, same theme-color
+ * literals), but neither runs the two side by side. A change to
+ * getInitialTheme()'s precedence — an explicit 'system' stored value, say, or
+ * a different validity rule — could silently stop matching the generated
+ * script's `if` while every one of those existing assertions stays green.
+ */
+
+type Listener = (event: MediaQueryListEvent) => void
+
+/** Replace window.matchMedia with a fixed answer, since jsdom never actually
+ * evaluates `(prefers-color-scheme: dark)`. Mirrors src/theme.test.ts's own
+ * mockPreferredTheme. */
+function mockPreferredTheme(prefersDark: boolean) {
+  const query = {
+    media: DARK_QUERY,
+    matches: prefersDark,
+    addEventListener(_type: 'change', _listener: Listener) {},
+    removeEventListener(_type: 'change', _listener: Listener) {},
+  }
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => query),
+  )
+}
+
+/** Runs the generated script body against the ambient document/window,
+ * exactly as a browser would run the inlined <script> in <head>. */
+function runGeneratedScript(): void {
+  new Function(generatedScript)()
+}
+
+const PARITY_CASES: {
+  label: string
+  stored?: string
+  osPrefersDark: boolean
+}[] = [
+  { label: 'a valid stored light', stored: 'light', osPrefersDark: true },
+  { label: 'a valid stored dark', stored: 'dark', osPrefersDark: false },
+  {
+    label: 'no stored value, with the OS preferring light',
+    osPrefersDark: false,
+  },
+  {
+    label: 'no stored value, with the OS preferring dark',
+    osPrefersDark: true,
+  },
+]
+
+describe('generated script vs getInitialTheme()', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    document.documentElement.classList.remove('dark')
   })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    window.localStorage.clear()
+    document.documentElement.classList.remove('dark')
+  })
+
+  it.each(PARITY_CASES)(
+    'agrees with getInitialTheme() for $label',
+    ({ stored, osPrefersDark }) => {
+      mockPreferredTheme(osPrefersDark)
+      if (stored !== undefined) {
+        window.localStorage.setItem(THEME_STORAGE_KEY, stored)
+      }
+
+      const expectDark = getInitialTheme() === 'dark'
+
+      runGeneratedScript()
+
+      expect(document.documentElement.classList.contains('dark')).toBe(
+        expectDark,
+      )
+    },
+  )
 })

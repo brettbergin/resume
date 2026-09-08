@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
 import { resumePdf } from './vite/resume-pdf.ts'
+import { themeScript } from './vite/theme-script.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -14,7 +15,9 @@ export default defineConfig({
   base: '/resume/',
   // `resumePdf` publishes the repo-root resume.pdf as dist/resume.pdf, so the
   // hero's download link resolves on Pages without a second committed copy.
-  plugins: [react(), tailwindcss(), resumePdf()],
+  // `themeScript` injects the pre-paint theme script into index.html's
+  // <head> so it stays generated from src/theme.ts instead of hand-typed.
+  plugins: [react(), tailwindcss(), resumePdf(), themeScript()],
   test: {
     // Components need a DOM; the node-environment suites (data checks, the
     // deploy workflow check that reads files with node:fs) run fine in jsdom

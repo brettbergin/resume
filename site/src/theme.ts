@@ -18,7 +18,9 @@ import { site } from './data/site.ts'
 
 export type Theme = 'light' | 'dark'
 
-const DARK_QUERY = '(prefers-color-scheme: dark)'
+/** Exported so `vite/theme-script.ts` can build the pre-paint inline script
+ * from this value instead of retyping it. */
+export const DARK_QUERY = '(prefers-color-scheme: dark)'
 
 /**
  * Where the user's choice is persisted.
