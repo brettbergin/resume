@@ -5,6 +5,12 @@ import { expect, test } from '@playwright/test'
  * the `md` breakpoint (320, 375), and at/above it where the inline nav takes
  * over (768, 1440). Parametrized over one spec rather than one project per
  * width, so the two assertions per width stay next to each other.
+ *
+ * Specs navigate with `page.goto('')` rather than an absolute-path goto:
+ * resolving an absolute path against `baseURL` drops both the base's
+ * `/resume/` path and its `?noboot` query (see playwright.config.ts), which
+ * would land on the wrong route and re-enable the boot overlay these specs
+ * don't want. An empty string resolves to `baseURL` unchanged.
  */
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -18,7 +24,7 @@ for (const viewport of VIEWPORTS) {
     test.use({ viewport })
 
     test('has no horizontal overflow', async ({ page }) => {
-      await page.goto('/')
+      await page.goto('')
 
       const overflow = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
@@ -29,7 +35,7 @@ for (const viewport of VIEWPORTS) {
     })
 
     test('shows the nav for this width', async ({ page }) => {
-      await page.goto('/')
+      await page.goto('')
 
       const menuButton = page.getByRole('button', { name: /menu/i })
       const inlineNav = page.getByRole('navigation', { name: 'Primary' })
