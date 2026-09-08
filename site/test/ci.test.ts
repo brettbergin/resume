@@ -181,7 +181,7 @@ describe('CI check job', () => {
   it('installs from the committed lockfile before checking anything', () => {
     const install = stepIndex(checkJob, 'npm ci')
     expect(install).toBeGreaterThanOrEqual(0)
-    const checks = [lintRun, 'npm run typecheck', 'npm run build']
+    const checks = ['npm test', lintRun, 'npm run typecheck', 'npm run build']
     for (const command of checks) {
       expect(stepIndex(checkJob, command), command).toBeGreaterThan(install)
     }
@@ -189,7 +189,7 @@ describe('CI check job', () => {
 
   it('runs lint, type-check and build as separate steps inside site/', () => {
     // Separate steps so any one of them can fail the job on its own.
-    const commands = ['npm ci', lintRun, 'npm run typecheck', 'npm run build']
+    const commands = ['npm ci', 'npm test', lintRun, 'npm run typecheck', 'npm run build']
     const steps = commands.map((command) => stepRunning(checkJob, command))
     for (const [index, step] of steps.entries()) {
       expect(step, commands[index]).toBeDefined()
@@ -225,11 +225,13 @@ describe('CI check job', () => {
     )
   })
 
-  it('leaves the vitest suite to a separate change', () => {
-    const runs = (checkJob?.steps ?? []).map((step) => step.run ?? '')
-    for (const run of runs) {
-      expect(run).not.toMatch(/\b(npm test|npm run test|vitest)\b/)
-    }
+  it('runs the vitest suite inside site/ after installing dependencies', () => {
+    const test = stepRunning(checkJob, 'npm test')
+    expect(test).toBeDefined()
+    expect(runsIn(checkJob!, test!)).toBe('site')
+    expect(stepIndex(checkJob, 'npm test')).toBeGreaterThan(
+      stepIndex(checkJob, 'npm ci'),
+    )
   })
 
   it('only invokes npm scripts that site/package.json defines', () => {

@@ -70,6 +70,10 @@ jobs:
         if: steps.changes.outputs.relevant == 'true'
         run: npm ci
 
+      - name: Test
+        if: steps.changes.outputs.relevant == 'true'
+        run: npm test
+
       # Three separate steps rather than one chained command: whichever one
       # fails, the check annotates the step that actually broke.
       # `--deny-warnings` because oxlint reports its default (correctness)
