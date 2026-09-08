@@ -69,3 +69,9 @@ jobs:
       # which nothing else in this job would notice.
       - name: Compare emitted PDF with the repo-root one
         run: cmp dist/resume.pdf ../resume.pdf
+
+      # Vite content-hashes the entry bundle and base-prefixes its path, so a
+      # broken base or an emptied dist/ would still leave index.html on disk —
+      # only checking what it points at catches a page that 404s on load.
+      - name: Assert dist/index.html references the built bundle
+        run: test -f dist/index.html && grep -Eq '<script[^>]*type="module"[^>]*src="/resume/assets/index-[A-Za-z0-9_-]+\.js"' dist/index.html
