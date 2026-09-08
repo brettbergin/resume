@@ -123,9 +123,116 @@ const checked = (fields: Field[]): Field[] =>
 
 const checkedFields = checked(allFields)
 
-/** The checked fields whose text is missing from the given markdown. */
+/**
+ * Four field categories are checked against the specific markdown section
+ * they were transcribed from, rather than the whole document, so a bullet
+ * attributed to the wrong role (or an item planted on the wrong skills line)
+ * is caught even though the identical text is still present verbatim
+ * somewhere else in the file. Everything else keeps the whole-document check.
+ *
+ * These operate on a `source` parameter rather than the module-level
+ * `markdown` constant so the same scoping logic runs against the mutated
+ * copies the tests below build.
+ */
+
+/** The substring of `source` between a `## ` heading and the next one. */
+function sectionBody(source: string, heading: string): string {
+  const headingLine = `## ${heading}`
+  const start = source.indexOf(headingLine)
+  if (start === -1) {
+    throw new Error(`markdown has no "${headingLine}" section`)
+  }
+  const afterHeading = start + headingLine.length
+  const nextHeading = source.slice(afterHeading).search(/\n## /)
+  const end =
+    nextHeading === -1 ? source.length : afterHeading + nextHeading
+  return source.slice(start, end)
+}
+
+/** The `### <title>` block for the role matching both `title` and `company`. */
+function experienceBlock(source: string, company: string, title: string): string {
+  const section = sectionBody(source, 'Work Experience')
+  const headings = [...section.matchAll(/^### .+$/gm)]
+  const blocks = headings.map((match, index) => {
+    const start = match.index
+    const end =
+      index + 1 < headings.length ? headings[index + 1].index : section.length
+    return section.slice(start, end)
+  })
+  const titleLine = `### ${title}`
+  const companyLine = `**${company}**`
+  const matches = blocks.filter(
+    (block) => block.split('\n')[0] === titleLine && block.includes(companyLine),
+  )
+  if (matches.length !== 1) {
+    throw new Error(
+      `expected exactly one Work Experience block for company ${JSON.stringify(company)} / title ${JSON.stringify(title)}, found ${matches.length}`,
+    )
+  }
+  return matches[0]
+}
+
+/** The `**<label>:**` line in the Technical Skills section. */
+function technicalSkillsLine(source: string, label: string): string {
+  const section = sectionBody(source, 'Technical Skills')
+  const marker = `**${label}:**`
+  const lines = section.split('\n').filter((line) => line.startsWith(marker))
+  if (lines.length !== 1) {
+    throw new Error(
+      `expected exactly one Technical Skills line for label ${JSON.stringify(label)}, found ${lines.length}`,
+    )
+  }
+  return lines[0]
+}
+
+/** The Open Source Projects table row containing `url`. */
+function projectRow(source: string, url: string): string {
+  const section = sectionBody(source, 'Open Source Projects')
+  // Matched as `(url)`, the exact markdown link syntax, so a url that is a
+  // prefix of another project's url (`DisableMySSH` vs `DisableMySSH-Infra`)
+  // still picks out a single row.
+  const lines = section.split('\n').filter((line) => line.includes(`(${url})`))
+  if (lines.length !== 1) {
+    throw new Error(
+      `expected exactly one Open Source Projects row containing ${JSON.stringify(url)}, found ${lines.length}`,
+    )
+  }
+  return lines[0]
+}
+
+const experienceHighlightPath = /^experiences\[(\d+)\]\.highlights\[\d+\]$/
+const technicalSkillsItemPath = /^technicalSkills\[(\d+)\]\.items\[\d+\]$/
+const projectFieldPath = /^projects\[(\d+)\]\.(?:name|url)$/
+
+/** The substring of `source` this field is checked against. */
+function scopeFor(field: Field, source: string): string {
+  if (field.pattern === 'achievements[].text' || field.pattern === 'achievements[].metric') {
+    return sectionBody(source, 'Key Achievements')
+  }
+
+  const highlightMatch = experienceHighlightPath.exec(field.path)
+  if (highlightMatch) {
+    const experience = experiences[Number(highlightMatch[1])]
+    return experienceBlock(source, experience.company, experience.title)
+  }
+
+  const skillMatch = technicalSkillsItemPath.exec(field.path)
+  if (skillMatch) {
+    return technicalSkillsLine(source, technicalSkills[Number(skillMatch[1])].label)
+  }
+
+  const projectMatch = projectFieldPath.exec(field.path)
+  if (projectMatch) {
+    return projectRow(source, projects[Number(projectMatch[1])].url)
+  }
+
+  return source
+}
+
+/** The checked fields whose text is missing from their scoped section of the
+ * given markdown. */
 const missingFrom = (source: string): Field[] =>
-  checkedFields.filter((field) => !source.includes(field.value))
+  checkedFields.filter((field) => !scopeFor(field, source).includes(field.value))
 
 describe('resume.ts transcribes resume.md', () => {
   for (const [name, fields] of fieldsByExport) {
@@ -169,5 +276,53 @@ describe('the sync check itself', () => {
 
   it('finds nothing missing against the markdown as it stands', () => {
     expect(missingFrom(markdown)).toEqual([])
+  })
+
+  it('reports a highlight relocated into a different role\'s block as missing for its real role', () => {
+    // A highlight that belongs to OnePay's block is removed from it and
+    // duplicated, verbatim, inside Cisco's block instead. A whole-document
+    // check would find the text present and call it a day; the scoped check
+    // must still flag it missing for OnePay, the role it actually belongs to.
+    const onePay = experiences[0]
+    const cisco = experiences[1]
+    const movedHighlight = onePay.highlights[0]
+
+    const withoutOriginal = markdown.replace(`- ${movedHighlight}\n`, '')
+    expect(withoutOriginal).not.toBe(markdown)
+
+    const ciscoAnchor = `- ${cisco.highlights[0]}\n`
+    const relocated = withoutOriginal.replace(
+      ciscoAnchor,
+      `${ciscoAnchor}- ${movedHighlight}\n`,
+    )
+    expect(relocated).not.toBe(withoutOriginal)
+
+    // The text is still present verbatim in the document as a whole...
+    expect(relocated).toContain(movedHighlight)
+    // ...but scoped to OnePay's own block, it is gone.
+    expect(missingFrom(relocated).map((field) => field.path)).toContain(
+      'experiences[0].highlights[0]',
+    )
+  })
+
+  it('reports a technicalSkills item planted on a different label line as missing', () => {
+    // An item that belongs to the "Security Tools" line is removed from it
+    // and planted, verbatim, on the "SIEM/Analytics" line instead.
+    const group = technicalSkills[0]
+    const other = technicalSkills[1]
+    const movedItem = group.items[0]
+
+    const withoutOriginal = markdown.replace(movedItem, 'REDACTED')
+    expect(withoutOriginal).not.toBe(markdown)
+
+    const otherLine = `**${other.label}:** ${other.items.join(', ')}`
+    expect(withoutOriginal).toContain(otherLine)
+    const relocated = withoutOriginal.replace(otherLine, `${otherLine}, ${movedItem}`)
+    expect(relocated).not.toBe(withoutOriginal)
+
+    expect(relocated).toContain(movedItem)
+    expect(missingFrom(relocated).map((field) => field.path)).toContain(
+      'technicalSkills[0].items[0]',
+    )
   })
 })
