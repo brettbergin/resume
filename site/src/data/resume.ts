@@ -163,13 +163,9 @@ export const technicalSkills: SkillGroup[] = [
     label: 'Specializations',
     items: [
       'Zero Trust Architecture',
-      'DevSecOps',
       'IAM',
       'Multi-Factor Authentication',
-      'Risk Assessment',
       'Security Architecture',
-      'Threat Hunting',
-      'Incident Response',
       'Security Governance',
     ],
   },
