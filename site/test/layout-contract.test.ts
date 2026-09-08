@@ -67,6 +67,57 @@ function lengthInRem(className: string): number | null {
   return match[2] === 'px' ? Number(match[1]) / 16 : Number(match[1])
 }
 
+/** An inline `style` prop pinning a pixel width, in either the JSX object
+ * form (`style={{ width: '400px' }}`, camelCase `minWidth`) or a raw string
+ * (`style="width: 400px"`, kebab-case `min-width`) — both bypass the
+ * Tailwind width utilities entirely, so neither is caught by `arbitraryValues`. */
+const inlinePixelWidths = (source: string): string[] => [
+  ...[
+    ...source.matchAll(
+      /style=\{\{[^}]*\b(?:width|minWidth)\s*:\s*['"]?\d+px[^}]*\}\}/g,
+    ),
+  ].map((match) => match[0]),
+  ...[
+    ...source.matchAll(
+      /style="[^"]*\b(?:width|min-width)\s*:\s*\d+px[^"]*"/g,
+    ),
+  ].map((match) => match[0]),
+]
+
+/** Every fixed or minimum pixel width the source declares: a `w-`/`min-w-`/
+ * `basis-` arbitrary value carrying a px value, or an inline `style` pinning
+ * one. Shared by the per-file check below and its synthetic regression test. */
+const fixedPixelWidths = (source: string): string[] => [
+  ...[
+    ...arbitraryValues(source, 'w'),
+    ...arbitraryValues(source, 'min-w'),
+    ...arbitraryValues(source, 'basis'),
+  ].filter((className) => className.includes('px')),
+  ...inlinePixelWidths(source),
+]
+
+/** Every too-tight flex/grid gap the source declares: the literal scale
+ * tokens 0/0.5/1/1.5 (all under 0.5rem on Tailwind's 0.25rem-per-step scale)
+ * for `gap`/`gap-x`/`gap-y`/`space-x`/`space-y`, or an arbitrary bracket
+ * value under 0.5rem on any of those five utilities. `space-x`/`space-y` put
+ * the same visible gap between children via margin instead of the flex/grid
+ * `gap` property, so they carry the same mis-tap risk under a different
+ * utility name. Shared by the per-file check below and its synthetic
+ * regression test. */
+const tooTightGaps = (source: string): string[] => [
+  ...[
+    ...source.matchAll(
+      /(?<![-\w])(?:gap(?:-[xy])?|space-[xy])-(?:0|0\.5|1|1\.5)(?![\w.])/g,
+    ),
+  ].map((match) => match[0]),
+  ...['gap', 'gap-x', 'gap-y', 'space-x', 'space-y']
+    .flatMap((utility) => arbitraryValues(source, utility))
+    .filter((className) => {
+      const rem = lengthInRem(className)
+      return rem !== null && rem < 0.5
+    }),
+]
+
 it('has shell sources to check', () => {
   // Guards the glob itself: a rename that empties this list must not turn the
   // whole file into a vacuous pass.
@@ -78,12 +129,7 @@ describe.each(shellSources)('$path', ({ source }) => {
   it('declares no fixed or minimum pixel width', () => {
     // A width pinned in pixels can be wider than a 320px viewport and cannot
     // shrink; widths come from `w-full` / `max-w-*` instead.
-    const fixed = [
-      ...arbitraryValues(source, 'w'),
-      ...arbitraryValues(source, 'min-w'),
-    ].filter((className) => className.includes('px'))
-
-    expect(fixed).toEqual([])
+    expect(fixedPixelWidths(source)).toEqual([])
   })
 
   it('does not use overflow-x-hidden', () => {
@@ -102,6 +148,64 @@ describe.each(shellSources)('$path', ({ source }) => {
     expect(tooSmall).toEqual([])
   })
 
+})
+
+/*
+ * Synthetic regression coverage for the two widened checks above: their real
+ * targets are src/App.tsx and src/components/*, which are already clean, so
+ * only made-up source strings can prove the detection actually fires. Any
+ * arbitrary (bracketed) utility used as input is assembled via string
+ * concatenation, the same way FOCUS_UTILITY is above, so this file never
+ * itself contains a literal, scannable Tailwind candidate.
+ */
+
+it('flags gap-0, sub-0.5rem arbitrary gaps, and space-x/space-y equivalents as too tight', () => {
+  const arbitraryGap = 'gap-' + '[4px]'
+  const arbitrarySpaceX = 'space-x-' + '[0.25rem]'
+
+  const badSource = `
+    <div className="flex gap-0" />
+    <div className="flex gap-x-0" />
+    <div className="flex gap-y-0" />
+    <div className="flex space-x-0" />
+    <div className="flex space-x-0.5" />
+    <div className="flex space-x-1" />
+    <div className="flex space-x-1.5" />
+    <div className="flex space-y-0" />
+    <div className="flex space-y-0.5" />
+    <div className="flex space-y-1" />
+    <div className="flex space-y-1.5" />
+    <div className="flex ${arbitraryGap}" />
+    <div className="flex ${arbitrarySpaceX}" />
+  `
+
+  expect(tooTightGaps(badSource).length).toBe(13)
+
+  const goodSource = `
+    <div className="flex gap-2" />
+    <div className="grid space-y-2" />
+  `
+
+  expect(tooTightGaps(goodSource)).toEqual([])
+})
+
+it('flags a pixel basis and an inline pixel width the same as a fixed w-/min-w- utility', () => {
+  const arbitraryBasis = 'basis-' + '[400px]'
+
+  const badSource = `
+    <div className="flex ${arbitraryBasis}" />
+    <div style={{ width: '400px' }} />
+    <div style="min-width: 400px" />
+  `
+
+  expect(fixedPixelWidths(badSource).length).toBe(3)
+
+  const goodSource = `
+    <div className="w-full max-w-5xl" />
+    <div className="basis-1/2" />
+  `
+
+  expect(fixedPixelWidths(goodSource)).toEqual([])
 })
 
 /** The rendering sources only: the rules below are about what the shell draws,
@@ -169,11 +273,7 @@ describe.each(componentSources)('$path', ({ source, path }) => {
     // Tap targets are 44px, and the issue asks for visible space between
     // them; a 4px gap leaves two of them close enough to mis-tap on a phone.
     // Everything in the shell uses 0.5rem or more.
-    const tooTight = [
-      ...source.matchAll(/(?<![-\w])gap(?:-[xy])?-(?:0\.5|1|1\.5)(?![\w.])/g),
-    ].map((match) => match[0])
-
-    expect(tooTight).toEqual([])
+    expect(tooTightGaps(source)).toEqual([])
   })
 
   it('takes its focus ring from src/styles.ts', () => {
