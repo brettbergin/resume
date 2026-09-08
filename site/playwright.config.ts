@@ -12,13 +12,19 @@ import { defineConfig, devices } from '@playwright/test'
  * check both include it — the bare origin 302-redirects there rather than
  * 200ing directly.
  *
+ * `?noboot` bypasses the boot sequence overlay (see BootSequence.tsx) so the
+ * suite's assertions run against the resume content immediately rather than
+ * racing the typewriter animation. Specs must navigate with `page.goto('')`
+ * (resolving to `baseURL` as-is), not `page.goto('/')` — an absolute-path
+ * goto discards both the base's path and its query string.
+ *
  * The four viewports are set per `test.describe` block in
  * e2e/responsive.spec.ts rather than as one project each, so there is only
  * one (default) project here.
  */
 
 const PORT = 5173
-const BASE_URL = `http://localhost:${PORT}/resume/`
+const BASE_URL = `http://localhost:${PORT}/resume/?noboot`
 
 export default defineConfig({
   testDir: './e2e',

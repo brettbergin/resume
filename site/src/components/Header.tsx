@@ -21,6 +21,7 @@ import type { KeyboardEvent, ReactNode } from 'react'
 import { summary } from '../data/resume.ts'
 import { sections } from '../data/sections.ts'
 import { FOCUS_RING, TAP_TARGET } from '../styles.ts'
+import { useScrollLock } from '../useScrollLock.ts'
 
 /** Everything the panel can contain that takes focus. It holds only links and
  * the close button, so this stays a short selector rather than a general
@@ -61,32 +62,8 @@ export function Header({ children }: { children?: ReactNode }) {
     first?.focus()
   }, [open])
 
-  // Freeze the page behind the panel. `overflow: hidden` alone is enough on
-  // most browsers, but iOS Safari ignores it on <body> and still lets the
-  // page rubber-band scroll behind the panel — pinning the body with
-  // `position: fixed` is what actually holds it there. The cleanup runs on
-  // close *and* on unmount-while-open, and restores whatever was there
-  // before rather than clearing the properties outright, then scrolls back
-  // to where the page was so unlocking does not jump it to the top.
-  useEffect(() => {
-    if (!open) return
-    const scrollY = window.scrollY
-    const previousOverflow = document.body.style.overflow
-    const previousPosition = document.body.style.position
-    const previousTop = document.body.style.top
-    const previousWidth = document.body.style.width
-    document.body.style.overflow = 'hidden'
-    document.body.style.position = 'fixed'
-    document.body.style.top = `-${scrollY}px`
-    document.body.style.width = '100%'
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.body.style.position = previousPosition
-      document.body.style.top = previousTop
-      document.body.style.width = previousWidth
-      window.scrollTo(0, scrollY)
-    }
-  }, [open])
+  // Freeze the page behind the panel while it is open.
+  useScrollLock(open)
 
   // Close the panel as soon as the viewport reaches `md`. Everything the open
   // state controls — the panel, the menu button, the focus trap, the body

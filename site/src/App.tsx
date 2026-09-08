@@ -5,12 +5,13 @@
  *
  * Sections are filled in one at a time by their own change, and the ones that
  * have not had theirs yet are placeholders. What this file owns is the
- * *shell*: exactly one banner, one <main> and one contentinfo, and the
+ * *shell*: exactly one banner, one main landmark and one contentinfo, and the
  * guarantee that every nav href has a matching id on the page, because both
  * come from `sections`.
  */
 
 import { AchievementsSection } from './components/AchievementsSection.tsx'
+import { BootSequence } from './components/BootSequence.tsx'
 import { ContactSection } from './components/ContactSection.tsx'
 import { ExperienceSection } from './components/ExperienceSection.tsx'
 import { Footer } from './components/Footer.tsx'
@@ -78,6 +79,8 @@ function App() {
       <a href="#main" className={SKIP_LINK}>
         Skip to content
       </a>
+
+      <BootSequence />
 
       <Header>
         <ThemeToggle />

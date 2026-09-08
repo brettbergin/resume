@@ -9,6 +9,8 @@
 @theme {
   /* Self-hosted via @fontsource-variable/inter (imported in main.tsx). */
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  /* Self-hosted via @fontsource-variable/jetbrains-mono (imported in main.tsx). */
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 
   /* Brand ramp — the single source of accent colors. */
   --color-brand-50: #eff6ff;
