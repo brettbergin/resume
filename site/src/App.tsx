@@ -157,7 +157,19 @@ function App() {
 
   return (
     <div className="flex min-h-svh flex-col bg-bg text-text">
-      <a href="#main" className={SKIP_LINK}>
+      <a
+        href="#main"
+        className={SKIP_LINK}
+        onClick={(event) => {
+          // Keep the tools route and its input in the fragment while moving
+          // keyboard focus past the header.
+          if (!onTools) return
+          event.preventDefault()
+          const main = document.getElementById('main')
+          main?.focus({ preventScroll: true })
+          main?.scrollIntoView?.()
+        }}
+      >
         Skip to content
       </a>
 
@@ -183,6 +195,7 @@ function App() {
           test/layout-contract.test.ts asserts they agree. */}
       <main
         id="main"
+        tabIndex={onTools ? -1 : undefined}
         className="mx-auto w-full max-w-5xl px-4 py-4 md:px-8 md:py-8"
       >
         {onTools ? (

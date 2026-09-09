@@ -112,7 +112,7 @@ test('detects a pasted JWT and switches to the jwt tool', async ({ page }) => {
   )
 })
 
-test('makes no request off the origin serving the page', async ({
+test('makes no network requests while processing pasted input', async ({
   page,
   baseURL,
 }) => {
@@ -120,17 +120,21 @@ test('makes no request off the origin serving the page', async ({
     throw new Error('baseURL is not configured; see playwright.config.ts')
   }
 
-  /* Recording starts before the navigation, so the app's own document, modules
-   * and fonts are all counted. The dev server necessarily serves those, which
-   * is why the assertion is same-origin rather than zero requests: what the
-   * acceptance criterion means by "no network" is that nothing the tools do
-   * reaches a third party. */
+  // The initial document, modules and fonts must come from this origin.
   const urls: string[] = []
   page.on('request', (request) => {
     urls.push(request.url())
   })
 
   await openTools(page)
+  await page.waitForLoadState('networkidle')
+  const origin = new URL(baseURL).origin
+  expect(
+    urls.filter((url) => /^https?:/.test(url) && new URL(url).origin !== origin),
+  ).toEqual([])
+  urls.length = 0
+
+  // Once loaded, even a same-origin request could disclose the pasted value.
   await input(page).fill(JWT)
   await expect(page.getByRole('link', { name: /detected as jwt/i })).toBeVisible()
   await input(page).fill(readCertificate())
@@ -138,13 +142,7 @@ test('makes no request off the origin serving the page', async ({
     page.getByRole('link', { name: /detected as cert/i }),
   ).toBeVisible()
 
-  const origin = new URL(baseURL).origin
-  const offOrigin = urls.filter(
-    // `data:` and `blob:` URLs never leave the tab, and `new URL(...).origin`
-    // reports `null` for them, so they are not what this is looking for.
-    (url) => /^https?:/.test(url) && new URL(url).origin !== origin,
-  )
-  expect(offOrigin).toEqual([])
+  expect(urls.filter((url) => /^https?:/.test(url))).toEqual([])
 })
 
 test('restores tool, input and output from a reloaded link', async ({
@@ -166,6 +164,28 @@ test('restores tool, input and output from a reloaded link', async ({
   ).toHaveAttribute('aria-current', 'page')
   await expect(input(page)).toHaveValue(JWT)
   await expect(output(page)).toContainText('"iss": "joe"')
+})
+
+test('skip link focuses the tools content without losing the current input', async ({
+  page,
+}) => {
+  await openTools(page, '#/tools/jwt')
+  await input(page).fill(JWT)
+  await expect(output(page)).toContainText('"iss": "joe"')
+  const shared = page.url()
+
+  const skip = page.getByRole('link', { name: 'Skip to content' })
+  await skip.focus()
+  await page.keyboard.press('Enter')
+
+  await expect(page.getByRole('main')).toBeFocused()
+  await expect(page).toHaveURL(shared)
+  await expect(input(page)).toHaveValue(JWT)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('~/tools')
+  await page.keyboard.press('Tab')
+  await expect(
+    page.getByRole('link', { name: 'magic paste', exact: true }),
+  ).toBeFocused()
 })
 
 test.describe('at 375x667', () => {
