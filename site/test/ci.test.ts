@@ -174,8 +174,8 @@ describe('CI workflow safety', () => {
 describe('CI check job', () => {
   it('checks out and sets up Node the same way the deploy does', () => {
     const uses = (checkJob?.steps ?? []).map((step) => step.uses)
-    expect(uses).toContain('actions/checkout@v5')
-    expect(uses).toContain('actions/setup-node@v5')
+    expect(uses).toContain('actions/checkout@v7')
+    expect(uses).toContain('actions/setup-node@v7.0.0')
   })
 
   it('installs from the committed lockfile before checking anything', () => {
@@ -274,8 +274,8 @@ describe('CI responsive job', () => {
 
   it('checks out and sets up Node the same way `check` does', () => {
     const uses = (responsiveJob?.steps ?? []).map((step) => step.uses)
-    expect(uses).toContain('actions/checkout@v5')
-    expect(uses).toContain('actions/setup-node@v5')
+    expect(uses).toContain('actions/checkout@v7')
+    expect(uses).toContain('actions/setup-node@v7.0.0')
   })
 
   it('gates on the same changed paths as `check`', () => {
