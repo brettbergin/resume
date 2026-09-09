@@ -140,23 +140,41 @@ export function BootSequence() {
          attribute is in the document. It cannot key off `role="dialog"` the
          way it does for the mobile menu, because this is not a dialog; and it
          has to suspend rather than paint over the overlay, because the ring
-         and dot are `--color-text`, which in the light palette is this
-         overlay's own `bg-neutral-900`. */
+         and dot are the *page's* `--color-text` — `#111827` in the light
+         palette — over this overlay's own near-black `bg-bg`. */
       data-overlay="boot"
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-neutral-900 px-4 font-mono text-neutral-50 transition-opacity duration-300 ${
+      /* `dark` rather than a hard-coded set of dark colours: index.css scopes
+         both its `.dark { … }` token block and its `dark` variant to
+         `.dark, .dark *`, i.e. that class on any ancestor and not only on
+         <html>. So the class makes this subtree resolve every semantic token
+         and every `dark:` utility against the dark palette in both themes —
+         the terminal being dark becomes a palette decision instead of a
+         literal — and it is what lets `glow-text` paint below in light mode.
+         `bg-bg` is `--color-neutral-950`, the same value site.ts advertises
+         as `themeColorDark`, so the fade has no colour step in it. */
+      className={`dark fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-bg px-4 font-mono text-text transition-opacity duration-300 ${
         stage === 'closing' ? 'opacity-0' : 'opacity-100'
       }`}
     >
       <div className="flex w-full max-w-2xl flex-col gap-2 text-sm">
         {SCRIPT.slice(0, lineCount).map((line) => (
-          <p key={line.text}>{line.text}</p>
+          <p key={line.text} className="text-accent">
+            {line.text}
+          </p>
         ))}
+        {/* The block cursor, parked under the line being typed. Only while the
+            script is still running: once the overlay is fading there is
+            nothing left to type, and a cursor blinking through the fade would
+            draw the eye to the thing that is leaving. */}
+        {stage === 'playing' ? <p className="text-accent blink">▌</p> : null}
       </div>
 
       {showName ? (
         <div className="flex flex-col items-center gap-2 text-center">
-          <span className="text-4xl font-semibold">{summary.name}</span>
-          <span className="text-base text-neutral-400">{summary.title}</span>
+          <span className="glow-text text-4xl font-semibold">
+            {summary.name}
+          </span>
+          <span className="text-base text-muted">{summary.title}</span>
         </div>
       ) : null}
     </div>

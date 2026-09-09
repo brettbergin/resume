@@ -54,6 +54,23 @@ const manualChecklist = (): string => {
   return start === -1 ? '' : siteReadme.slice(start)
 }
 
+/**
+ * One top-level item of the manual checklist, from the line matching `start`
+ * to the next top-level item or the end of the file — sub-bullets included.
+ * `$` would be the end of the *line* under the `m` flag `start` needs.
+ */
+const itemStartingWith = (start: RegExp): string => {
+  const body = new RegExp(
+    `${start.source}[\\s\\S]*?(?=\\n- \\[ \\]|\\n## |(?![\\s\\S]))`,
+    'm',
+  )
+  return body.exec(manualChecklist())?.[0] ?? ''
+}
+
+/** The checklist item covering the three states that hand the OS arrow back. */
+const arrowItem = (): string =>
+  itemStartingWith(/^- \[ \] \*\*The native arrow/m)
+
 /** site/README.md's Accessibility section, up to the next `##` heading. */
 const accessibilitySection = (): string => {
   const start = siteReadme.search(accessibilityHeading)
@@ -253,6 +270,29 @@ describe('site README rice treatments', () => {
     expect(section).toContain('reticle-lag')
   })
 
+  it("documents the boot cursor's blink utility and what carries it", () => {
+    // Third of the same kind as hero-weight and reticle-lag: a utility whose
+    // one carrier is a glyph in a component nobody greps for by colour. It is
+    // also the utility most likely to be dropped from the reduced-motion
+    // block by someone tidying the animation, so the section has to say that
+    // the block is where it is switched off.
+    const section = treatmentsSection()
+
+    expect(section).not.toBe('')
+    expect(section).toContain('blink')
+    expect(section).toContain('BootSequence.tsx')
+    expect(section).toMatch(/prefers-reduced-motion/)
+  })
+
+  it('counts the utilities it actually lists', () => {
+    // The count in the paragraph under the heading is the one number in the
+    // section that a new row silently falsifies.
+    const section = treatmentsSection()
+
+    expect(section).not.toMatch(/\bsix named\b/i)
+    expect(section).toMatch(/\bseven named\b/i)
+  })
+
   it('says the section headings now come from SectionHeading', () => {
     // The glow's "Carried by" cell used to say "every section <h2>", which was
     // true while five components each wrote their own. They no longer do, and
@@ -289,14 +329,46 @@ describe('site README manual checklist: the rice treatments', () => {
     // All three are suspensions rather than unmounts, and all three are
     // states a person can get into by accident and find a frozen — or
     // invisible — reticle in. The boot overlay is the one that is not a near
-    // miss: it is `bg-neutral-900` and the reticle is `--color-text`, the same
-    // colour in the light palette, so a first load with the arrow hidden and
-    // the reticle painted has no visible pointer at all.
+    // miss: it is a `dark` subtree painting `bg-bg` (#0a0a0a) and the reticle
+    // is the page's `--color-text`, #111827 in the light palette, so a first
+    // load with the arrow hidden and the reticle painted has no visible
+    // pointer at all.
     const checklist = manualChecklist()
 
     expect(checklist).toMatch(/mobile menu/i)
     expect(checklist).toMatch(/blur|focus/i)
     expect(checklist).toMatch(/boot/i)
+  })
+
+  it('gives the boot overlay its current background, not the old ramp step', () => {
+    // The item explains why a coloured reticle would not save this case, and
+    // the explanation is only true of the colour the overlay actually paints.
+    // It was written against `bg-neutral-900`, the pre-neon navy, and stayed
+    // that way for a release after the overlay moved onto the tokens.
+    const item = arrowItem()
+
+    expect(item).not.toBe('')
+    expect(item).toMatch(/#0a0a0a|bg-bg/i)
+    expect(item).not.toMatch(/neutral-900/)
+  })
+
+  it('walks the repainted boot sequence in both themes', () => {
+    // Every colour in the overlay is a browser's answer — jsdom applies no
+    // stylesheet — so this item is the whole of the repaint's acceptance: the
+    // background that must not step at the fade, the accent on the prompt,
+    // the glow on the name, the muted title and the blinking cursor. The
+    // light-theme half is the one a reviewer would otherwise skip, and it is
+    // where the `dark` subtree either works or does not.
+    const item = itemStartingWith(/^- \[ \] \*\*The boot sequence/m)
+
+    expect(item).not.toBe('')
+    expect(item).toContain('#0a0a0a')
+    expect(item).toMatch(/accent/i)
+    expect(item).toMatch(/glow/i)
+    expect(item).toMatch(/muted/i)
+    expect(item).toMatch(/blink/i)
+    expect(item).toMatch(/\blight\b/i)
+    expect(item).toMatch(/\bdark\b/i)
   })
 
   it('walks the pointer leaving the document, which blur does not cover', () => {

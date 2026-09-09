@@ -96,11 +96,64 @@ describe('the overlay', () => {
   it('marks itself as an overlay, so the custom cursor suspends over it', () => {
     // Being neither a dialog nor announced, this attribute is the only thing
     // src/components/Cursor.tsx can find it by — and it has to, because the
-    // reticle is `--color-text` on this overlay's own `bg-neutral-900`: the
-    // same colour in the light palette, with the OS arrow already hidden.
+    // reticle is drawn in the page's `--color-text` (#111827 in the light
+    // palette) over this overlay's own dark-palette `bg-bg`, #0a0a0a, with
+    // the OS arrow already hidden.
     const overlay = overlayIn(render(<BootSequence />).container)
 
     expect(overlay!.getAttribute('data-overlay')).toBe('boot')
+  })
+
+  it('is its own dark subtree, so the terminal is dark under either theme', () => {
+    // index.css scopes both its `.dark { … }` tokens and its `dark` variant to
+    // `.dark, .dark *` — the class on any ancestor, not only <html> — so this
+    // is what makes `bg-bg`/`text-text`/`text-accent` inside resolve to the
+    // dark palette on a light page, and what makes `glow-text` paint at all.
+    const overlay = overlayIn(render(<BootSequence />).container)
+
+    expect(overlay!.classList.contains('dark')).toBe(true)
+    expect(overlay!.classList.contains('bg-bg')).toBe(true)
+    expect(overlay!.classList.contains('text-text')).toBe(true)
+  })
+
+  it('paints in semantic tokens only, never a raw ramp colour', () => {
+    // The rule the rest of src/components/ follows by convention, and the one
+    // this overlay broke: a hard-coded `neutral-*` does not follow the palette,
+    // which is how it kept the pre-neon navy after the cut-over. Checked both
+    // while the script is typing and once the name and title are on screen,
+    // since they are the later half of the markup.
+    const { container } = render(<BootSequence />)
+
+    expect(container.innerHTML).not.toContain('neutral-')
+
+    act(() => {
+      vi.runOnlyPendingTimers()
+    })
+
+    expect(container.textContent).toContain(summary.name)
+    expect(container.innerHTML).not.toContain('neutral-')
+  })
+
+  it('blinks a block cursor while typing, and takes it away on close', () => {
+    const { container } = render(<BootSequence />)
+
+    const cursor = () =>
+      [...container.querySelectorAll('p')].find((p) => p.textContent === '▌')
+
+    expect(cursor()).toBeDefined()
+    expect(cursor()!.className).toContain('blink')
+    expect(cursor()!.className).toContain('text-accent')
+
+    act(() => {
+      vi.runOnlyPendingTimers()
+    })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+
+    // Nothing left to type, and nothing left to blink at.
+    expect(overlayIn(container)).toBeNull()
+    expect(cursor()).toBeUndefined()
   })
 
   it('eventually types out the visitor’s name and title on its own', () => {

@@ -357,6 +357,46 @@
 }
 
 /*
+ * The terminal's block cursor: the glyph the boot sequence parks after the
+ * line it is currently typing. A hard on/off blink, not a fade — `steps(1)`
+ * holds each half of the cycle flat and jumps between them, which is what a
+ * text terminal does; an eased `opacity` would read as a pulsing glow and put
+ * the cursor in the same visual family as the halo, which is a different
+ * treatment for a different thing.
+ *
+ * 1s, the cadence a VT-style cursor blinks at. Named here rather than written
+ * as a bracketed arbitrary class in the component for the reason every other
+ * number in this file is — test/layout-contract.test.ts sweeps components/ and
+ * keeps magic numbers out of the shell's source, and a keyframe duration in a
+ * class list is one.
+ *
+ * The `@keyframes` is deliberately *top-level*, a sibling of the utility
+ * rather than nested inside it or inside a palette block: src/theme-contrast
+ * .test.ts parses `@theme` and `.dark` by reading to the *first* `}`, so a
+ * nested block inside either would truncate the palette it parses and take
+ * the whole suite with it. For the same reason there is no second top-level
+ * `.dark { … }` block here — if this ever needs palette scoping, nest
+ * `&:where(.dark, .dark *)` inside `@utility` the way `glow-text` does.
+ *
+ * Its reduced-motion clause is in the single media block below, with the rest
+ * of that contract, rather than in a media query of its own.
+ */
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@utility blink {
+  animation: blink 1s steps(1, end) infinite;
+}
+
+/*
  * The one place motion is switched off for a visitor who asked for less of it.
  * Every animated thing the rice adds is named here rather than in its own
  * utility, so the whole reduced-motion contract is one greppable block —
@@ -416,6 +456,13 @@
   .sweep:hover::before,
   .sweep:focus-visible::before {
     transform: translateX(-100%);
+  }
+
+  /* The block cursor stops blinking and stays lit. `animation: none` leaves
+     the glyph at its own `opacity: 1` rather than at whichever keyframe it was
+     paused on, so the cursor is still there — it just holds still. */
+  .blink {
+    animation: none;
   }
 }
 

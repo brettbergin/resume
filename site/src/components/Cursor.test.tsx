@@ -97,7 +97,7 @@ function appendOverlay(): HTMLDivElement {
   const overlay = document.createElement('div')
   overlay.setAttribute('data-overlay', 'boot')
   overlay.setAttribute('aria-hidden', 'true')
-  overlay.className = 'fixed inset-0 z-50 bg-neutral-900'
+  overlay.className = 'dark fixed inset-0 z-50 bg-bg'
   document.body.append(overlay)
   return overlay
 }
@@ -301,9 +301,9 @@ describe('Cursor', () => {
   it('suspends itself while a full-bleed overlay is in the document', async () => {
     // Mounted with the overlay already there, which is the first-load case:
     // the boot overlay is in the DOM before Cursor's effect runs. Over it the
-    // reticle is `--color-text` on the overlay's own `bg-neutral-900` — the
-    // same #111827 in the light palette — so painting it while `custom-cursor`
-    // has taken the OS arrow away leaves no visible pointer at all.
+    // reticle is the page's `--color-text` — #111827 in the light palette — on
+    // the overlay's own dark-palette `bg-bg`, #0a0a0a, so painting it while
+    // `custom-cursor` has taken the OS arrow away leaves no visible pointer.
     const overlay = appendOverlay()
 
     render(<Cursor />)
@@ -425,11 +425,12 @@ describe('Cursor in the app', () => {
 
 /*
  * The first load of a fresh session, which is the one case where suspending on
- * an overlay is not a nicety: BootSequence's overlay is `bg-neutral-900` and
- * the reticle is `--color-text`, the same #111827 in the light palette, so a
- * painted reticle over it is invisible while `custom-cursor` has already taken
- * the OS arrow away — no pointer of any kind for the ~2.3s the overlay plays,
- * including for the pointerdown that dismisses it.
+ * an overlay is not a nicety: BootSequence's overlay is a `dark` subtree
+ * painting `bg-bg` (#0a0a0a), and the reticle is the page's `--color-text`,
+ * #111827 in the light palette, so a painted reticle over it is near-black on
+ * near-black while `custom-cursor` has already taken the OS arrow away — no
+ * pointer of any kind for the ~2.3s the overlay plays, including for the
+ * pointerdown that dismisses it.
  *
  * Nothing here sets `resume-boot-seen` (the other App suite above does), so
  * the overlay actually plays, and the fake timers are BootSequence.test.tsx's
@@ -454,7 +455,10 @@ describe('Cursor during the boot sequence', () => {
     // attribute is what marks it as something to suspend for.
     const overlay = document.querySelector('[data-overlay]')
     expect(overlay).not.toBeNull()
-    expect(overlay?.className).toContain('bg-neutral-900')
+    // And the palette that makes the suspension necessary: its own `dark`
+    // subtree, so it is #0a0a0a under a light page too.
+    expect(overlay?.className).toContain('dark')
+    expect(overlay?.className).toContain('bg-bg')
 
     expect(hasRootClass()).toBe(false)
     expect(ring()).toBeNull()
