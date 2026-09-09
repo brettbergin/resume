@@ -66,3 +66,20 @@ Automating that — generating `resume.ts` (and the exports) from `resume.md` �
 would be a separate change. The check runs under `npm test` in `site/`, and
 **CI does not run the Vitest suite today** (it lints, type-checks and builds),
 so run `npm test` locally before opening a pull request.
+
+### Regenerating resume.pdf
+
+`resume.pdf` is rendered from `resume.html` with WeasyPrint at a **14px base
+font size** — the size the published five-page layout is set at. `resume.html`
+declares no `font-size` on `body`, so a plain `weasyprint resume.html` takes
+the CSS-initial 16px instead and silently reflows the whole resume into seven
+pages of 8/7-larger type. Pass the base size explicitly:
+
+```bash
+python3 -m venv /tmp/wp && /tmp/wp/bin/pip install 'weasyprint==67.0'
+/tmp/wp/bin/python -c "from weasyprint import HTML, CSS; HTML(filename='resume.html').write_pdf('resume.pdf', stylesheets=[CSS(string='body{font-size:14px}')])"
+```
+
+`site/test/resume-pdf-layout.test.ts` reads the committed file back and asserts
+both facts — five pages, 14px base — so a render at the wrong size fails
+`npm test` instead of reaching the site's Download PDF button.
