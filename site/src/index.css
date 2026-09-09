@@ -308,6 +308,55 @@
 }
 
 /*
+ * The type half of the weight-reactive hero name. src/useHeroWeight.ts writes
+ * one custom property — `--hero-wght` — on the hero container, and this is
+ * everything that turns that number into type: the variation axis and the lag
+ * behind the pointer. Named rather than bracketed for the same reason the
+ * glows and the tilt are: test/layout-contract.test.ts keeps magic numbers out
+ * of the shell's source.
+ *
+ * The default in the `var()` is the rest weight, so the name is correct before
+ * the first pointer event and stays correct everywhere the hook deliberately
+ * does nothing — a touch screen, or a reader who asked for reduced motion. It
+ * is inherited, so the property can be written on the container while only the
+ * <h1> carries this utility.
+ *
+ * 80ms: long enough that a fast sweep across the hero reads as the weight
+ * chasing the cursor rather than snapping frame to frame, short enough that it
+ * still feels attached to it. No reduced-motion clause here — the single media
+ * block below collapses every transition in the page, this one included, and
+ * test/rice-contract.test.ts pins that the file names that query exactly once.
+ *
+ * Inter Variable is self-hosted with its `wght` axis intact (@theme's
+ * `--font-sans`), so this is a real axis rather than a synthesised bold.
+ */
+@utility hero-weight {
+  font-variation-settings: 'wght' var(--hero-wght, 600);
+  transition: font-variation-settings 80ms ease-out;
+}
+
+/*
+ * The ring's lag, and the only thing separating it from the dot in
+ * src/components/Cursor.tsx: the component writes both elements the same
+ * position in the same tick, and only the ring carries this transition, so it
+ * trails the pointer and catches up when the pointer stops.
+ *
+ * 120ms: long enough that the pair reads as one cursor with a little weight to
+ * it, short enough that the ring is never far from the point the dot marks.
+ *
+ * A utility rather than an inline `style` on the element, for the same reason
+ * every other number in this file is one — it is greppable here instead of
+ * buried in a component — and for one more: an inline style beats every
+ * stylesheet rule, so the `transition-duration` collapse in the
+ * reduced-motion block below could not touch it. Declared here it is inside
+ * that contract, not out of its reach. (Today the component also returns null
+ * under reduced motion, so nothing is painted either way.)
+ */
+@utility reticle-lag {
+  transition: transform 120ms ease-out;
+}
+
+/*
  * The one place motion is switched off for a visitor who asked for less of it.
  * Every animated thing the rice adds is named here rather than in its own
  * utility, so the whole reduced-motion contract is one greppable block —
@@ -368,6 +417,36 @@
   .sweep:focus-visible::before {
     transform: translateX(-100%);
   }
+}
+
+/*
+ * The other half of src/components/Cursor.tsx: while the reticle is painted,
+ * the OS arrow is hidden. The component toggles this class on <html> and owns
+ * every condition under which it is absent (a touch screen, a coarse pointer,
+ * reduced motion, a blurred window, an overlay in front of the page) — this
+ * file only says what the class means.
+ *
+ * The three element selectors are not redundant with the root one. Chrome's UA
+ * stylesheet declares `cursor: pointer` on `a:-webkit-any-link`, and any
+ * declaration on the element beats a value inherited from an ancestor, so
+ * `cursor: none` on <html> alone would leave the arrow showing over every
+ * link. `button` and `[role="button"]` have no such UA rule and would inherit
+ * `none` on their own; they are listed alongside the anchor so that a UA which
+ * does declare one cannot reintroduce the arrow on exactly the controls the
+ * reticle is most visible over. (Nothing in src/ applies a pointer-cursor
+ * utility of its own — the competing declaration here is the UA's.)
+ *
+ * Deliberately *unlayered*, for the same reason the reduced-motion block above
+ * is: `@utility` and Tailwind's own utilities land in the `utilities` layer,
+ * and a layered rule loses to a later layer however specific it is. It is also
+ * outside `@theme` and `.dark`, whose first blocks src/theme-contrast.test.ts
+ * parses by counting to the first `}`.
+ */
+.custom-cursor,
+.custom-cursor a,
+.custom-cursor button,
+.custom-cursor [role='button'] {
+  cursor: none;
 }
 
 @layer base {

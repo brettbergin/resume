@@ -22,6 +22,7 @@ import { useRef } from 'react'
 import { competencies, technicalSkills } from '../data/resume.ts'
 import type { SkillGroup } from '../data/types.ts'
 import { useTilt } from '../useTilt.ts'
+import { SectionHeading } from './SectionHeading.tsx'
 
 /** A chip: non-interactive today, but already sized as a comfortable tap
  * target (`min-h-8` is 2rem tall, `px-3` is 0.75rem either side) so making one
@@ -102,15 +103,17 @@ function SkillGroups({
 export function SkillsSection({
   headingId,
   heading,
+  index,
 }: {
   headingId: string
   heading: string
+  index: number
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <h2 id={headingId} className="glow-text text-2xl font-medium">
+      <SectionHeading id={headingId} index={index}>
         {heading}
-      </h2>
+      </SectionHeading>
 
       <SkillGroups title="Core Competencies" groups={competencies} />
       <SkillGroups title="Technical Skills" groups={technicalSkills} />

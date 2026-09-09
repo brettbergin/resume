@@ -358,3 +358,43 @@ describe('the shared content column', () => {
     },
   )
 })
+
+/*
+ * A second scanning trap, the same shape as the bracketed-value one this file
+ * opens with, but for a *plain* utility: writing a Tailwind class name out in
+ * prose — a doc comment, a README paragraph — makes it a candidate, and
+ * Tailwind v4 emits a real rule for it into the production bundle even though
+ * no element carries it. The name below is assembled in two halves for that
+ * exact reason; neither half is a utility on its own.
+ *
+ * The `custom-cursor` rule in src/index.css exists because Chrome's UA
+ * stylesheet declares `cursor: pointer` on links, not because anything in this
+ * project applies the utility, so the token has no business in any of these
+ * files. The check is spelled as "no source names it" rather than "the bundle
+ * has no such rule" because the bundle only exists after a build; naming it is
+ * the cause, and this is where the cause can be seen.
+ */
+const POINTER_CURSOR_UTILITY = 'cursor-' + 'pointer'
+
+/** The files that discuss the `custom-cursor` rule, and so are the ones
+ * tempted to name the utility it competes with: the shell's own source plus
+ * the two documents that explain the rule. */
+const CURSOR_PROSE = [
+  ...shellSources,
+  ...['src/index.css', 'README.md'].map((path) => ({
+    path,
+    source: readFileSync(resolve(here, '..', path), 'utf8'),
+  })),
+]
+
+it('has cursor prose to check', () => {
+  expect(CURSOR_PROSE.length).toBeGreaterThan(shellSources.length)
+  for (const { source } of CURSOR_PROSE) expect(source).not.toBe('')
+})
+
+it.each(CURSOR_PROSE)(
+  '$path never writes the pointer-cursor utility out as a scannable token',
+  ({ source }) => {
+    expect(source).not.toContain(POINTER_CURSOR_UTILITY)
+  },
+)

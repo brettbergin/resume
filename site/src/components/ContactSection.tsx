@@ -17,21 +17,24 @@
 
 import { contact } from '../data/resume.ts'
 import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../styles.ts'
+import { SectionHeading } from './SectionHeading.tsx'
 
 const LINK = `inline-flex ${TAP_TARGET_HEIGHT} items-center rounded-pill text-accent hover:underline ${FOCUS_RING}`
 
 export function ContactSection({
   headingId,
   heading,
+  index,
 }: {
   headingId: string
   heading: string
+  index: number
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <h2 id={headingId} className="glow-text text-2xl font-medium">
+      <SectionHeading id={headingId} index={index}>
         {heading}
-      </h2>
+      </SectionHeading>
 
       <dl className="flex flex-col gap-4 text-base text-text">
         <div className="flex flex-col gap-2">

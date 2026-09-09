@@ -29,6 +29,7 @@ import { useRef } from 'react'
 import { achievements } from '../data/resume.ts'
 import type { Achievement } from '../data/types.ts'
 import { useTilt } from '../useTilt.ts'
+import { SectionHeading } from './SectionHeading.tsx'
 
 /** One card per row below `md`, two from `md` and three from `lg`. Widths are
  * the grid's, so a card is never wider than the viewport. */
@@ -76,15 +77,17 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
 export function AchievementsSection({
   headingId,
   heading,
+  index,
 }: {
   headingId: string
   heading: string
+  index: number
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <h2 id={headingId} className="glow-text text-2xl font-medium">
+      <SectionHeading id={headingId} index={index}>
         {heading}
-      </h2>
+      </SectionHeading>
 
       <ul role="list" className={CARD_GRID}>
         {achievements.map((achievement) => (

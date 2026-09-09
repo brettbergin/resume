@@ -264,6 +264,7 @@ const stripComments = (source: string): string =>
 
 const RICE_COMPONENTS = [
   'src/components/AchievementsSection.tsx',
+  'src/components/Cursor.tsx',
   'src/components/ExperienceEntry.tsx',
   'src/components/ExperienceSection.tsx',
   'src/components/Header.tsx',
@@ -312,19 +313,16 @@ describe('the glow classes the components carry', () => {
     )
   })
 
-  /* Every source that renders an `<h2>`: the five sections that own their own
-   * heading, plus App.tsx, whose `sectionBody` has a `default:` branch that
-   * renders one for a section id no case handles yet. That branch is
-   * unreachable today — every id in src/data/sections.ts has a real case — but
-   * it is the heading a seventh section would get, and a heading the page
-   * renders without the halo is the one visible exception to the treatment. */
+  /* Every source that renders an `<h2>`. There are two: SectionHeading.tsx,
+   * which is the heading all five filled-in sections now render through, and
+   * App.tsx, whose `sectionBody` has a `default:` branch that renders one for
+   * a section id no case handles yet. That branch is unreachable today — every
+   * id in src/data/sections.ts has a real case — but it is the heading a
+   * seventh section would get, and a heading the page renders without the halo
+   * is the one visible exception to the treatment. */
   const HEADING_SOURCES = [
     'src/App.tsx',
-    'src/components/AchievementsSection.tsx',
-    'src/components/ContactSection.tsx',
-    'src/components/ExperienceSection.tsx',
-    'src/components/ProjectsSection.tsx',
-    'src/components/SkillsSection.tsx',
+    'src/components/SectionHeading.tsx',
   ] as const
 
   it.each(HEADING_SOURCES)('blooms every <h2> in %s', (path) => {
@@ -585,5 +583,85 @@ describe("the sweep bar's composite contrast", () => {
     const band = composite(core, page.rgb, core.alpha * barOpacity)
 
     expect(contrast(paintOf(label, overrides).rgb, band)).toBeGreaterThanOrEqual(4.5)
+  })
+})
+/*
+ * The crosshair's one number. It is in this file rather than inline on the
+ * element for the reason the bracketed values above are: greppable in one
+ * place, and reachable by the reduced-motion block — an inline style beats
+ * every stylesheet rule, so `transition-duration: 0.01ms` on `*` could not
+ * touch it there.
+ */
+describe('the reticle-lag utility', () => {
+  const body = utility('reticle-lag').body
+
+  it('eases the transform, and says how long for', () => {
+    expect(body).toMatch(/transition:\s*transform\s+120ms/)
+  })
+
+  it('is carried by the ring alone, and by no other component', () => {
+    const lists = classListsNaming(
+      sourceOf('src/components/Cursor.tsx'),
+      'reticle-lag',
+    )
+
+    expect(lists).toHaveLength(1)
+    // The ring is the `size-5` element. The dot (`size-1`) is written the same
+    // position in the same tick and must go there immediately — the lag is the
+    // whole difference between the two.
+    expect(lists[0]).toContain('size-5')
+    expect(lists[0]).not.toContain('size-1')
+
+    for (const [path, source] of sources) {
+      if (path === 'src/components/Cursor.tsx') continue
+      expect(source, path).not.toContain('reticle-lag')
+    }
+  })
+
+  it('is not also written as an inline style on the element', () => {
+    // The trap this replaces: `style={{ transition: 'transform 120ms' }}` is
+    // out of reach of the reduced-motion block and invisible to a grep for
+    // the rice's numbers.
+    const source = sourceOf('src/components/Cursor.tsx')
+
+    expect(source).not.toMatch(/transition:\s*transform/)
+    expect(source).not.toContain('120ms')
+  })
+})
+
+/*
+ * The crosshair's suspensions, as source pins: which overlays hand the OS
+ * arrow back. The reason this is a contract and not a preference is arithmetic
+ * — BootSequence's overlay is `bg-neutral-900`, and in the light palette
+ * `--color-text` is that same value, so a reticle painted over it is
+ * invisible at 1.00:1 while `custom-cursor` has already hidden the arrow.
+ * Behaviour is covered in src/components/Cursor.test.tsx; this pins that the
+ * two halves still name each other.
+ */
+describe('the overlays the reticle suspends for', () => {
+  const cursor = sourceOf('src/components/Cursor.tsx')
+
+  it('watches for a modal dialog and for a data-overlay element', () => {
+    expect(cursor).toContain('[role="dialog"][aria-modal="true"]')
+    expect(cursor).toContain('data-overlay')
+  })
+
+  it('is what BootSequence marks its overlay for', () => {
+    // The boot overlay is `aria-hidden inert` rather than a dialog, so the
+    // attribute is the only thing Cursor can find it by.
+    const boot = stripComments(
+      readFileSync(resolve(siteDir, 'src/components/BootSequence.tsx'), 'utf8'),
+    )
+
+    expect(boot).toMatch(/data-overlay=["']boot["']/)
+    // And the colour that makes the suspension necessary rather than optional.
+    expect(boot).toContain('bg-neutral-900')
+  })
+
+  it('agrees with the palette: --color-text is neutral-900 in light mode', () => {
+    // The arithmetic behind all of the above. If the light palette ever stops
+    // painting text in the overlay's own colour, the suspension is still
+    // right — but this is the fact that made it a bug rather than a nicety.
+    expect(theme.body).toMatch(/--color-text:\s*var\(--color-neutral-900\)/)
   })
 })

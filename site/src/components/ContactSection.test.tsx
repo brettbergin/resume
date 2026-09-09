@@ -7,9 +7,14 @@ import { ContactSection } from './ContactSection.tsx'
 
 const HEADING_ID = 'contact-heading'
 const HEADING = 'Contact'
+/** The section's 1-based place in src/data/sections.ts, which is the number
+ * SectionHeading paints in front of the label. App.tsx passes it in. */
+const HEADING_INDEX = 6
 
 function renderSection() {
-  return render(<ContactSection headingId={HEADING_ID} heading={HEADING} />)
+  return render(
+    <ContactSection headingId={HEADING_ID} heading={HEADING} index={HEADING_INDEX} />,
+  )
 }
 
 function classesOf(element: Element | null | undefined) {
@@ -23,7 +28,12 @@ describe('ContactSection', () => {
     const headings = screen.getAllByRole('heading', { level: 2 })
 
     expect(headings).toHaveLength(1)
-    expect(headings[0].textContent).toBe(HEADING)
+    // By accessible name: SectionHeading's `NN /` prefix and its scrambling
+    // copy of the label are both aria-hidden, so the element's textContent is
+    // no longer the label on its own.
+    expect(headings[0]).toBe(
+      screen.getByRole('heading', { level: 2, name: HEADING }),
+    )
     // App.tsx labels the wrapping <section> with this id; the section owns it.
     expect(headings[0].id).toBe(HEADING_ID)
     // The hero owns the document's only <h1>.

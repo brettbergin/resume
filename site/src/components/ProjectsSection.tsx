@@ -17,6 +17,7 @@
 
 import { projects } from '../data/resume.ts'
 import { ProjectCard } from './ProjectCard.tsx'
+import { SectionHeading } from './SectionHeading.tsx'
 
 /** One card per row below `md`, two from `md` and three from `lg` — the same
  * grid the achievements cards use. Widths are the grid's, so a card is never
@@ -26,15 +27,17 @@ const CARD_GRID = 'grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3'
 export function ProjectsSection({
   headingId,
   heading,
+  index,
 }: {
   headingId: string
   heading: string
+  index: number
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <h2 id={headingId} className="glow-text text-2xl font-medium">
+      <SectionHeading id={headingId} index={index}>
         {heading}
-      </h2>
+      </SectionHeading>
 
       <ul role="list" className={CARD_GRID}>
         {projects.map((project) => (

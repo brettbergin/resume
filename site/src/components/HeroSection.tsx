@@ -15,8 +15,11 @@
  * would 404 there.
  */
 
+import { useRef } from 'react'
+
 import { contact, summary } from '../data/resume.ts'
 import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../styles.ts'
+import { useHeroWeight } from '../useHeroWeight.ts'
 
 /** Full width below `sm`, where the buttons are stacked, and content width
  * once they sit in a row.
@@ -38,12 +41,18 @@ const PRIMARY_CTA = `${CTA} bg-accent font-medium text-accent-contrast hover:opa
 const SECONDARY_CTA = `${CTA} border border-border-strong text-text hover:border-accent hover:text-accent ${GLOW}`
 
 export function HeroSection({ headingId }: { headingId: string }) {
+  /* The name's weight follows the pointer across the whole hero, not just the
+     line of type: the hook writes `--hero-wght` on this container and the <h1>
+     inherits it through the `hero-weight` utility, so one ref drives both. */
+  const hero = useRef<HTMLDivElement>(null)
+  useHeroWeight(hero)
+
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={hero} className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h1
           id={headingId}
-          className="glow-text text-3xl font-semibold md:text-4xl"
+          className="glow-text hero-weight text-5xl font-semibold tracking-tight md:text-7xl"
         >
           {summary.name}
         </h1>
