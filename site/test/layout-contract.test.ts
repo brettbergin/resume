@@ -21,10 +21,25 @@ import { describe, expect, it } from 'vitest'
 const here = dirname(fileURLToPath(import.meta.url))
 const srcDir = resolve(here, '../src')
 
-/** App.tsx plus every file in src/components/ — the shell's own source. */
+/** Every file under `directory`, recursively, as a path relative to it. The
+ * walk descends because src/components/ has subdirectories now (the
+ * `~/tools` page's panes live in components/tools/): a flat read would hand
+ * `readFileSync` a directory and throw, and — worse, once that was worked
+ * around — would leave every component in a subdirectory outside this
+ * contract. */
+function collect(directory: string, prefix = ''): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = prefix === '' ? entry.name : join(prefix, entry.name)
+    return entry.isDirectory()
+      ? collect(join(directory, entry.name), path)
+      : [path]
+  })
+}
+
+/** App.tsx plus every file under src/components/ — the shell's own source. */
 const shellSources: { path: string; source: string }[] = [
   'App.tsx',
-  ...readdirSync(join(srcDir, 'components')).map((name) =>
+  ...collect(join(srcDir, 'components')).map((name) =>
     join('components', name),
   ),
 ].map((path) => ({
@@ -123,6 +138,11 @@ it('has shell sources to check', () => {
   // whole file into a vacuous pass.
   expect(shellSources.map((file) => file.path)).toContain('src/App.tsx')
   expect(shellSources.length).toBeGreaterThan(1)
+  // And guards the descent: a walk that stopped at the top level would still
+  // satisfy everything above while quietly exempting every nested component.
+  expect(
+    shellSources.filter((file) => file.path.startsWith('src/components/tools/')),
+  ).not.toHaveLength(0)
 })
 
 describe.each(shellSources)('$path', ({ source }) => {

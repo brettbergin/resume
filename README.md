@@ -19,6 +19,10 @@ publishes it.
   `site/public/` — one copy in git, no way for a second one to go stale.
 - `site/` — the Vite + React + TypeScript frontend deployed to GitHub Pages.
   See [`site/README.md`](site/README.md) for the detail.
+- `site/src/tools/` — the `~/tools` route (`#/tools`): a browser-only security
+  toolbox — JWT, certificate, base64, hex, hash, CIDR and epoch decoders — that
+  makes no network request of any kind. See
+  [The `~/tools` route](site/README.md#the-tools-route).
 - `site/public/` — the files published at the site root as-is: `favicon.svg`
   and the generated `og-image.png` / `apple-touch-icon.png` behind the SEO and
   social-preview tags, plus `robots.txt` and `sitemap.xml`. The two PNGs are

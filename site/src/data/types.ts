@@ -59,6 +59,24 @@ export interface PageSection {
   label: string
 }
 
+/** One page the header links to that is *not* a section of the resume: the
+ * `~/tools` route, rendered by the hash router in `App.tsx`.
+ *
+ * Deliberately its own shape rather than another `PageSection`: a section id
+ * is an on-page anchor — `App.tsx` renders an element carrying it and
+ * `App.test.tsx` asserts every `#`-link resolves to an element id — while a
+ * route names a view that replaces those sections, so no element on the page
+ * ever carries it. The href is written out in full rather than derived from
+ * the id, because the route path (`#/tools`) is not the id (`tools`). */
+export interface RouteLink {
+  /** Stable key for the route, matching the tools page's own name. */
+  id: string
+  /** The nav text for the route. */
+  label: string
+  /** The full hash href, leading `#` included. */
+  href: string
+}
+
 /** Identity and the professional summary paragraph. */
 export interface Summary {
   name: string

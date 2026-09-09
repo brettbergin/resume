@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { summary } from '../data/resume.ts'
+import { routes } from '../data/routes.ts'
 import { sections } from '../data/sections.ts'
 import { Header } from './Header.tsx'
 
@@ -105,19 +106,24 @@ describe('Header', () => {
     expect(screen.getByText(summary.name)).toBeDefined()
   })
 
-  it('renders one inline nav link per section, linking to its id', () => {
+  it('renders one inline nav link per section and per route, in that order', () => {
     render(<Header />)
 
     const nav = screen.getByRole('navigation', { name: 'Primary' })
     const links = within(nav).getAllByRole('link')
 
-    expect(links).toHaveLength(sections.length)
-    expect(links.map((link) => link.textContent)).toEqual(
-      sections.map((section) => section.label),
-    )
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(
-      sections.map((section) => `#${section.id}`),
-    )
+    expect(links).toHaveLength(sections.length + routes.length)
+    expect(links.map((link) => link.textContent)).toEqual([
+      ...sections.map((section) => section.label),
+      ...routes.map((route) => route.label),
+    ])
+    // A section's href is derived from its id, so the nav and the page's
+    // anchors cannot drift; a route's is written out in the registry, because
+    // `#/tools` is a hash path and not an id anything on the page carries.
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      ...sections.map((section) => `#${section.id}`),
+      ...routes.map((route) => route.href),
+    ])
   })
 
   it('sweeps and blooms an inline nav link on hover and keyboard focus only', () => {
@@ -143,16 +149,36 @@ describe('Header', () => {
     }
   })
 
-  it('renders the same section links inside the mobile menu', async () => {
+  it('renders the same section and route links inside the mobile menu', async () => {
     const user = userEvent.setup()
     render(<Header />)
 
     const dialog = await openMenu(user)
     const links = within(dialog).getAllByRole('link')
 
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(
-      sections.map((section) => `#${section.id}`),
-    )
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      ...sections.map((section) => `#${section.id}`),
+      ...routes.map((route) => route.href),
+    ])
+  })
+
+  it('keeps the route links inside the two navs it already has', async () => {
+    const user = userEvent.setup()
+    render(<Header />)
+
+    // One landmark in the bar, one in the panel — never a third for the
+    // handful of route links.
+    expect(screen.getAllByRole('navigation')).toHaveLength(1)
+
+    const dialog = await openMenu(user)
+
+    expect(screen.getAllByRole('navigation')).toHaveLength(2)
+    expect(within(dialog).getAllByRole('navigation')).toHaveLength(1)
+    for (const route of routes) {
+      expect(
+        within(dialog).getByRole('link', { name: route.label }),
+      ).toBeDefined()
+    }
   })
 
   it('renders children in the bar, outside the mobile panel', async () => {

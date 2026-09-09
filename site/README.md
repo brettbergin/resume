@@ -262,6 +262,9 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 | `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
 | `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
 | `src/data/sections.ts`            | The section registry: the single source of both the nav entries and the section ids   |
+| `src/data/routes.ts`              | The route registry: nav entries that are hash *paths* rather than on-page anchors — see [The `~/tools` route](#the-tools-route) |
+| `src/components/tools/ToolsPage.tsx` | What `<main>` holds on the `#/tools` route instead of the sections: the tool list and one `ToolPane` for the active tool |
+| `src/components/tools/ToolPane.tsx` | One tool's pane: the input textarea, the options row, the `<pre>` output and its fields table, and the copy and share buttons — the same markup for every tool, driven only by the `Tool` contract |
 
 **The section registry is the single source of truth for navigation.**
 `sections` is a list of `{ id, label }`; the header maps over it for its links
@@ -409,6 +412,218 @@ rest weight the utility's `var()` default declares. `useDecrypt` reads only
 scrambling in response to a pointer) and returns `text` immediately with
 nothing scheduled. Neither registers a `change` listener, for the same reason
 `useTilt` does not.
+
+## The `~/tools` route
+
+`~/tools` is a security toolbox — decoders, parsers and digests — served from
+the same bundle as the resume and in the same terminal skin. Its premise is
+that a real token, certificate or secret can be pasted into it, because
+nothing it does leaves the browser.
+
+### It is a hash route, not a second page
+
+There is one page and no routing library. `App.tsx` reads `location.hash` into
+state, subscribes to `hashchange`, and renders `ToolsPage`
+(`src/components/tools/ToolsPage.tsx`) inside the same `<main id="main">` when
+the hash names the tools route — `#/tools`, `#/tools/jwt?i=…`; `isToolsRoute`
+in `src/tools/fragment.ts` decides. Everything else about the shell is
+unchanged across the two routes: the same skip link, `Header`, `Cursor` and
+`Footer`, and the same single `banner`/`main`/`contentinfo`. The boot sequence
+is the exception — it plays on the resume only, because a shared tool link
+opening behind a typing animation hides the thing it was sent to show.
+
+**The alternative was a second Vite entry, and it was rejected.** A
+`site/tools.html` with its own `build.rollupOptions.input` would give a cleaner
+`/resume/tools/` URL, and would cost a build change plus an edit to every place
+that assumes this site is one document: `test/index-html.test.ts`,
+`test/metadata.test.ts`, `public/sitemap.xml` and
+`.github/workflows/deploy-pages.yml`. The hash route costs one `hashchange`
+listener and leaves all four of those single-page assumptions standing. It also
+survives GitHub Pages having no rewrite rule to send `/resume/tools/` back to
+`index.html` — a deep link to a second entry would 404 on a refresh — and the
+page keeps its whole state in the fragment anyway, which is the one part of a
+URL a browser never sends to a server. The effort is client-only from end to
+end, so the cleaner path bought nothing the fragment does not already give.
+
+**Route links are not section links.** `src/data/routes.ts` holds them —
+`{ id: 'tools', label: '~/tools', href: '#/tools' }` — separately from
+`sections.ts`, because a section id is an on-page anchor that `App.tsx` renders
+an element for and `App.test.tsx` checks resolves, while a route names a view
+that replaces those sections and matches no element id. The header renders them
+after the section links *inside* its existing navs, inline and in the mobile
+panel, so neither route adds a second navigation landmark.
+
+### The fragment is the state
+
+`src/tools/fragment.ts` owns the format, and it is:
+
+```
+#/tools/<id>?i=<base64url input>&o=<base64url json options>
+```
+
+The route prefix comes first so `App.tsx` can decide what to render from
+`location.hash` alone. Both payloads are base64url (RFC 4648 §5, padding
+stripped) so a pasted PEM's newlines, an option value's `&` and any non-ASCII
+text survive the trip without a second layer of percent-escaping. Nothing in
+the module throws: a hash is attacker-supplied text — truncated by a chat
+client, hand-edited, or written by an older version of the page — so every
+parse failure degrades to `magic` with an empty input rather than blanking the
+page.
+
+**Every run writes the hash with `history.replaceState`, never `pushState`.** A
+run happens on every debounced keystroke, so pushing would put one history
+entry per character in front of the reader and turn leaving the page into forty
+presses of Back. `replaceState` also fires no `hashchange`, which is what keeps
+the page's own writes from feeding back into the listener that reads the hash.
+
+**Inputs over 4 KB are not written into the hash at all.** `MAX_HASH_INPUT_BYTES`
+is 4096 UTF-8 bytes (measured with a `TextEncoder`, because `.length` counts
+UTF-16 code units and would let a CJK paste through at twice the size). Past
+the ceiling `i=` is *absent* rather than truncated — half a certificate decodes
+to an error and looks like a bug — while the tool id and the options are still
+written, so the link opens the right tool configured the right way. The pane
+asks `exceedsHashLimit` the same question and greys out its share button with
+the reason, so a 20 KB URL is never silently produced or silently lost.
+
+### The tool contract
+
+`src/tools/types.ts` is the whole of what the shared UI knows about a tool, so
+a new tool is one module plus one line in `registry.ts` and never a change to
+`ToolPane`. A `Tool` is an `id` (the URL segment), a `name` (the sidebar
+label), a `run(input, options)` returning a `ToolResult`, and four optional
+members that are the interesting part:
+
+| Member             | What it means                                                                                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `detect(input)`    | A 0..1 confidence that the input is this tool's format. Scores are comparable across tools, because magic paste ranks them against each other                       |
+| `runFile(file)`    | A dropped `File`, hashed or parsed from its `arrayBuffer()`. The pane offers a drop zone only when the active tool declares this, which keeps the pane generic      |
+| `live`             | Asks the pane to re-run the tool once a second — the JWT tool's countdown to `exp` — so no tool owns a timer of its own                                             |
+| `options`          | `ToolOption` rows the pane renders as a select or a text input. Values are strings throughout, so the whole map survives a round trip through the fragment unchanged |
+
+A `ToolResult` is `{ ok, output, fields?, error?, detected? }`: `output` is
+rendered in a `<pre>`, `fields` are the labelled rows beside it (a `warn` row
+is the one to look at twice — `alg: none`, an expired `notAfter`, a signature
+that did not verify), and an `error` renders inline rather than as an alert.
+
+**`ToolOption.secret` values are never encoded into the fragment.** An HMAC
+secret, a private key or a passphrase typed into a tool must not travel in a
+link the reader then pastes into chat, so the exclusion lives on the option
+definition rather than in whichever component happens to build the URL:
+`buildToolHash` writes what it is handed, and `ToolsPage`/`ToolPane` — the
+layer that holds the option definitions — filter `secret` values out before
+handing anything over. A secret is also rendered in a password input, so it is
+a secret from the shoulder behind the reader too. It stays in memory for the
+session and nowhere else.
+
+### The registry, and how magic paste picks
+
+`src/tools/registry.ts` is the one list, in a pinned order that is neither
+alphabetical nor arrival order:
+
+```
+magic, base64, hex, url, html, jwt, hash, cert, cidr, epoch
+```
+
+magic first because it is the landing state; then the encodings, grouped; then
+the credential and crypto tools; then the network and time ones. A new tool is
+inserted at its place rather than appended. Every entry's `id` matches its
+module's file name, which `registry.test.ts` enforces — the id appears in URLs
+people share, so it cannot drift from the module it names.
+
+The order is not only presentation: **magic paste sweeps the registry in
+order**, runs every `detect`, and dispatches to the highest score above its
+`DETECTION_THRESHOLD` of **0.6**, with ties resolved by registry position — the
+earlier tool wins. Below the threshold it reports that it recognised nothing
+rather than guessing. When it does dispatch, the result is that tool's, plus a
+`detected` marker the page turns into the "detected as JWT, switch" chip
+linking to `#/tools/jwt`. `createMagic` takes an accessor for the tool list
+rather than importing it, because the registry lists magic first and magic
+needs the registry: the accessor is only called inside a run, by which point
+the module has finished evaluating.
+
+### Two vendored modules
+
+Both live under `src/tools/vendor/`, both are self-contained, and both have
+their own test vectors — the page ships no runtime dependencies at all.
+
+- **`src/tools/vendor/md5.ts`** — MD5 (RFC 1321) in about a hundred lines.
+  Vendored because Web Crypto deliberately does not implement MD5, and broken
+  is not the same as gone: an SSH fingerprint from older OpenSSH, a vendor
+  console's thumbprint and a checksum next to a download link are all still
+  MD5, and matching one against a value on screen is exactly what the hash and
+  cert tools are for. Never to prove anything is authentic.
+- **`src/tools/vendor/asn1.ts`** — a minimal DER reader. Vendored because the
+  cert tool walks a few well-known structures (a Certificate, a
+  CertificationRequest, an SPKI key) and every general ASN.1 library is orders
+  of magnitude larger than the walking. It covers DER as X.509 uses it and
+  deliberately rejects BER's indefinite lengths — guessing where a value ends
+  is how a parser reads past its buffer.
+
+Everything else is Web Crypto: SHA-1/256/384/512, HMAC, and the RSA/ECDSA
+signature verification behind the JWT tool.
+
+### The fixtures
+
+`test/fixtures/` holds real artefacts, produced by `openssl` and `ssh-keygen`
+and never by the tool under test — a decoder checked against its own output
+proves nothing. The exact invocations sit next to each constant in
+`src/tools/cert.test.ts`; in outline:
+
+```bash
+# self-signed.pem — CN=tools.example, two DNS SANs and an IP SAN
+openssl req -x509 -newkey rsa:2048 -nodes -keyout self-signed.key \
+  -out self-signed.pem -days 3650 -sha256 \
+  -subj "/CN=tools.example/O=Tools Fixtures" \
+  -addext "subjectAltName=DNS:tools.example,DNS:www.tools.example,IP:127.0.0.1"
+
+# chain.pem — an EC leaf under an RSA CA, leaf first, so one fixture covers
+# both key-size paths (a measured modulus and a curve looked up by OID).
+# chain-out-of-order.pem is the same two certs concatenated CA-first, which is
+# the break the chain check has to flag.
+openssl req -x509 -newkey rsa:2048 -nodes -keyout ca.key -out ca.pem \
+  -days 3650 -sha256 -subj "/CN=Tools Fixtures CA/O=Tools Fixtures"
+openssl x509 -req -in leaf.csr -CA ca.pem -CAkey ca.key -out leaf.pem \
+  -days 3650 -sha256 -set_serial 4097 -extfile leaf.ext
+cat leaf.pem ca.pem > chain.pem
+cat ca.pem leaf.pem > chain-out-of-order.pem
+
+# request.csr — a CSR, the other thing the cert tool parses
+openssl req -new -newkey rsa:2048 -nodes -keyout request.key \
+  -out request.csr -sha256 -subj "/CN=csr.tools.example/O=Tools Fixtures" \
+  -addext "subjectAltName=DNS:csr.tools.example"
+
+# authorized_keys — one ed25519 public key line
+ssh-keygen -t ed25519 -N '' -C 'tools@example' -f id_ed25519
+cp id_ed25519.pub authorized_keys
+```
+
+The expected values are read out of the same tools —
+`openssl x509 -noout -fingerprint -sha256 -serial -dates -dateopt iso_8601`,
+and `ssh-keygen -lf` / `ssh-keygen -E md5 -lf` for the two SSH fingerprints —
+and pasted into the suite as constants, so a fixture regenerated without
+updating them fails rather than quietly re-baselining. The private keys are
+**not** committed: nothing needs them to re-run the suite, and a key in the
+repository is a key in every clone. Elsewhere the vectors are the standards'
+own — RFC 4648 for base64, RFC 7519's sample token for JWT, RFC 1321 for MD5.
+
+### Nothing leaves the browser
+
+Every tool runs locally, on Web Crypto and the two vendored parsers. There is
+no API call, no telemetry, no "look up this issuer" convenience, and no
+analytics — that is the promise the page makes in prose, and it is the only
+reason pasting a production token into it is a reasonable thing to do.
+
+`test/tools-no-network.test.ts` is the mechanical guard. It reads every file
+under `src/tools/` and `src/components/tools/`, recursively (the vendored
+parsers included), and fails any that so much as names `fetch(`,
+`XMLHttpRequest`, `WebSocket`, `EventSource` or `sendBeacon`. It is a *source*
+assertion on purpose: intercepting requests at runtime would only cover the
+paths a test happens to exercise, whereas the property wanted here is that the
+capability is never referenced at all. The cost — a comment mentioning one of
+those names fails too — is the right way round, and it is why this document
+writes them in a list rather than in the tools' own sources. Whether a browser
+actually issues nothing is still the reader's check: it is the Network-tab item
+in [Manual check](#manual-check-widths-mobile-menu-theme-persistence).
 
 ## Styling: Tailwind CSS v4, CSS-first
 
@@ -606,7 +821,7 @@ engine stays a person's check in
 
 | File | What it asserts |
 | ---- | --------------- |
-| `src/a11y.test.tsx` | The page-wide contract over the tree `<App />` renders: exactly one `banner`, `navigation`, `main` and `contentinfo` landmark and exactly one `<h1>` (the hero's name); heading levels that never jump by more than one; the skip link being the first focusable element and targeting the `#main` landmark; a non-empty accessible name on every link and button; an `alt` attribute on every rendered `<img>` (plus a source sweep, since the page renders none today) and `aria-hidden` on every decorative `<svg>`; and a `focus-visible:outline-*` ring and a 44px `min-h-11` floor on every control — re-run with the mobile menu open, so the panel's links are held to the same rules |
+| `src/a11y.test.tsx` | The page-wide contract over the tree `<App />` renders: exactly one `banner`, `navigation`, `main` and `contentinfo` landmark and exactly one `<h1>` (the hero's name); heading levels that never jump by more than one; the skip link being the first focusable element and targeting the `#main` landmark; a non-empty accessible name on every link and button; an `alt` attribute on every rendered `<img>` (plus a source sweep, since the page renders none today) and `aria-hidden` on every decorative `<svg>`; and a `focus-visible:outline-*` ring and a 44px `min-h-11` floor on every control — re-run with the mobile menu open, so the panel's links are held to the same rules. It is also **re-run over the `#/tools` route**, where `<main>` holds the tool list and one pane instead of the six sections: the same one `banner` / `navigation` / `main` / `contentinfo`, exactly one `<h1>` and it being the page's own `~/tools`, and the same no-skipped-levels descent — a sidebar wrapped in a second `<nav>`, or a pane heading promoted to `<h1>`, would pass every resume-route assertion and still be wrong |
 | `src/theme-contrast.test.ts` | Token parity and declared contrast over `src/index.css` read as text: every property `.dark` reassigns exists in `@theme` and every semantic `@theme` token is reassigned in `.dark`, so neither palette can fall back to an undefined value; and each semantic token resolved through the ramps to a hex, with the WCAG 2.x ratio computed per theme — 4.5:1 for text pairs (AA 1.4.3) and 3:1 for `--color-border-strong` (AA 1.4.11) |
 | `test/layout-contract.test.ts` | The source guards: no width or minimum width pinned in pixels, no `overflow-x-hidden`, no arbitrary font size below `1rem`, no gap under `gap-2`, the three content columns padded to the same edges, no `<a>` or `<button>` missing the `min-h-11` 44px tap-target floor, and no component declaring the focus ring itself instead of importing `FOCUS_RING` from `src/styles.ts` |
 | `test/index-html.test.ts` | The document-level half a client-rendered page cannot assert from the React tree: the `lang` attribute on `<html>`, and that nothing focusable sits outside `#root` — which is what lets "first focusable element of the render" mean "first focusable element of the page" |
@@ -1133,3 +1348,51 @@ truncated or overlapping, and no tap target cramped against its neighbour.
       because a `text-shadow` is static paint rather than movement. A control
       that became indistinguishable from its resting state is the failure to
       look for.
+- [ ] **`#/tools` makes zero network requests, watched in the Network tab.**
+      `test/tools-no-network.test.ts` proves no source under `src/tools/` or
+      `src/components/tools/` names a network API, but only a browser says what
+      was actually sent. Open devtools > **Network**, tick *Disable cache*,
+      load `#/tools`, and let the request list settle after the document, the
+      bundle and the fonts. Then work the page — paste a token into magic
+      paste, switch to the JWT tool, type a secret into its verify field, drop
+      a file on the hash tool, press Copy and press Share — and confirm **no
+      further request of any kind appears**: no XHR, no fetch, no beacon, no
+      image, no websocket. The whole reason a real credential can be pasted
+      here is that this list stays empty, so a single new row is a release
+      blocker rather than a curiosity. Repeat it once offline (devtools >
+      Network > *Offline*) with the page already loaded: every tool must still
+      run.
+- [ ] **A real JWT's expiry countdown ticks.** Paste a token with an `exp` a
+      few minutes out into the JWT tool and watch the expiry field for ten
+      seconds: the remaining time **counts down once a second** rather than
+      freezing at whatever it read on the first parse, and it flips to the
+      expired warning state on its own when the moment passes — without a
+      keystroke and without the input being re-typed. Then paste an
+      already-expired token and a token with a future `nbf` and confirm each
+      renders its warning row. The `live` re-run is a timer in `ToolPane`, and
+      jsdom's fake clock cannot say whether a browser's is actually running.
+- [ ] **A shared fragment URL restores tool, input and output.** With a decoded
+      thing on screen, copy the URL out of the address bar, open it in a **new
+      tab**, and confirm the page comes up on the *same tool* with the *same
+      input* already in the textarea and the *same output* rendered — no empty
+      pane, no bounce back to magic paste. Then check the two edges: a **secret
+      option** (the HMAC secret, a pasted key) is **not** in the copied URL and
+      comes up empty in the new tab, which is the whole point of
+      `ToolOption.secret`; and pasting an input **over 4 KB** (a certificate
+      chain will do) **greys out the share button** with its reason, leaving
+      the URL free of the paste rather than growing a 20 KB link. Hand-mangle
+      the fragment — truncate the `i=` payload, invent a tool id — and confirm
+      the page lands on magic paste with an empty input instead of blanking.
+- [ ] **Walk `#/tools` at every width and in both palettes**, the same five
+      widths (320, 375, 768, 1024, 1440) and the same **light** and **dark**
+      pass the matrix at the top of this list defines, checking the same three
+      things in each cell: no horizontal scroll
+      (`document.documentElement.scrollWidth === document.documentElement.clientWidth`),
+      no text clipped or overlapping, and no tap target cramped against its
+      neighbour. What is specific to this route: the tool list and the pane
+      stack into one column on a phone and sit side by side from `md`; a long
+      `<pre>` output — a hex dump, a certificate chain — **scrolls inside its
+      own box** rather than widening the page; the copy and share buttons are
+      still ≥ 44×44 with 8px of clear space; and in the dark palette the
+      output, the fields table and the `warn` rows all stay readable against
+      `bg-surface`.
