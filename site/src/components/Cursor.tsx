@@ -73,12 +73,14 @@ const INTERACTIVE_SELECTOR = 'a, button, [role="button"]'
  * exactly this.
  *
  * Suspending on "an overlay is up" rather than recolouring the reticle is the
- * general fix. The boot overlay is `bg-neutral-900`, and in the light palette
- * `--color-text` is that same `#111827`, so a `border-text` ring and a
- * `bg-text` dot over it are invisible at 1.00:1 while `custom-cursor` has
- * already taken the OS arrow away — a pointerless first load. Any future
- * overlay painted in a fixed palette would reintroduce that state; carrying
- * `data-overlay` keeps it out. */
+ * general fix. The boot overlay is its own `dark` subtree, so it paints the
+ * dark palette's `bg-bg` (`#0a0a0a`) whatever the page's theme is — while the
+ * reticle is drawn out here in the *page's* `--color-text`, `#111827` in the
+ * light palette. A `border-text` ring and a `bg-text` dot over that overlay
+ * are near-black on near-black, 1.12:1, while `custom-cursor` has already
+ * taken the OS arrow away — a pointerless first load. Any overlay that pins
+ * its own palette reintroduces that state; carrying `data-overlay` keeps it
+ * out. */
 const OVERLAY_SELECTOR = '[role="dialog"][aria-modal="true"], [data-overlay]'
 
 /** Shared by both elements. `top-0 left-0` puts them at the viewport origin;

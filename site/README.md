@@ -464,11 +464,12 @@ mode in one place, so a component built on them needs no `dark:` variants at
 all. Reach for `brand-*` / `neutral-*` directly only when adding a new
 semantic token.
 
-### The accent's treatments: `glow-text`, `glow-ring`, `tilt-card`, `sweep`, `hero-weight`, `reticle-lag`
+### The accent's treatments: `glow-text`, `glow-ring`, `tilt-card`, `sweep`, `hero-weight`, `reticle-lag`, `blink`
 
-Six named `@utility` rules in `src/index.css` carry everything the neon accent
-does beyond being a colour (the last of them is the crosshair's, which is
-paint rather than accent, and lives here because it is the same kind of number):
+Seven named `@utility` rules in `src/index.css` carry everything the neon accent
+does beyond being a colour (two of them — the crosshair's `reticle-lag` and the
+boot overlay's `blink` — are paint rather than accent, and live here because
+they are the same kind of number):
 
 | Utility     | What it draws                                                                                     | Carried by                                                                                                              |
 | ----------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -478,6 +479,7 @@ paint rather than accent, and lives here because it is the same kind of number):
 | `sweep`     | A `::before` gradient bar that translates from off-canvas left to off-canvas right over 600ms, on a hovering pointer or on keyboard focus | The hero CTAs and the header nav links, each with `overflow-hidden` so the bar is clipped to the control                  |
 | `reticle-lag` | The crosshair ring's `transform` transition — 120ms, which is the whole of what separates the ring from the dot: both are written the same position in the same tick and only the ring eases into it | The ring in `Cursor.tsx`, and nothing else. A utility rather than an inline `style` so the number is greppable with the rest of them, and so the reduced-motion block's `transition-duration` collapse can reach it |
 | `hero-weight` | The variable-font half of the reactive hero name: a `wght` variation axis read from `var(--hero-wght, 600)`, with an 80ms transition so the weight chases the pointer instead of snapping frame to frame | The hero's `<h1>` — paired with `useHeroWeight`, which writes the property on the container and nothing else (see [Shared hooks](#shared-hooks)) |
+| `blink`     | A hard on/off `opacity` keyframe on a 1s `steps(1, end)` cycle — a text terminal's cursor rather than an eased pulse, which would read as another glow | The `▌` block cursor in `BootSequence.tsx`, parked after the last line the fake session has typed and rendered only while it is still typing. Switched off in the single `prefers-reduced-motion` block below, which drops the animation rather than pausing it, so the glyph is left lit instead of stranded on whichever half of the cycle it was in |
 
 **One thing in the rice is a plain class rather than a utility:
 `custom-cursor`.** `src/components/Cursor.tsx` toggles it on `<html>` while the
@@ -1041,9 +1043,10 @@ truncated or overlapping, and no tap target cramped against its neighbour.
         so the boot overlay plays. The OS arrow is visible for the whole ~2.3s
         the overlay is up, and the click that dismisses it early is one you can
         aim. This is the case a coloured reticle would not fix: the overlay is
-        `bg-neutral-900` and the ring and dot are `--color-text`, which in the
-        light palette is the same `#111827`. The crosshair takes over the
-        moment the overlay finishes fading.
+        its own `dark` subtree, so it paints `bg-bg` (`#0a0a0a`) even under a
+        light page, while the ring and dot are the page's `--color-text`,
+        `#111827` in the light palette — near-black on near-black. The
+        crosshair takes over the moment the overlay finishes fading.
       - At 375px, open the mobile menu. The OS arrow returns for as long as the
         panel is open, and the panel's focus trap, its links and its close
         button all behave exactly as they did before the reticle existed. Close
@@ -1052,6 +1055,22 @@ truncated or overlapping, and no tap target cramped against its neighbour.
         The arrow returns rather than the ring sitting frozen wherever it last
         was, and moving the pointer over the inactive window does not move it.
         Click back in and the crosshair resumes at the pointer's real position.
+- [ ] **The boot sequence is painted in the neon palette, in both themes.** The
+      overlay hard-coded the pre-neon navy until it was moved onto the tokens,
+      and jsdom applies no stylesheet, so what it actually paints is a
+      browser's answer. Cold-load a fresh session (a new tab with no
+      `resume-boot-seen` and no `?noboot`) in the **dark** theme and read the
+      screen against a colour picker: the background is `#0a0a0a` — the same
+      `--color-bg` the page behind it uses — the fake session's prompt lines
+      are in the **acid-green accent**, the name that types out at the end
+      **glows**, the title under it is the muted grey and not the body text
+      colour, and the block cursor at the end of the script **blinks on and
+      off** rather than fading in and out. Watch the hand-off closely: when the
+      overlay fades there is **no visible colour jump**, because the two
+      backgrounds are the same value. Then do the whole thing again in the
+      **light** theme. The overlay is still dark — it is its own `dark`
+      subtree by design, and the glow still paints inside it — and the page
+      underneath is **light** once the fade completes.
 - [ ] **Touch devices get the native cursor and no reticle at all.** On a real
       phone or tablet (not devtools' responsive mode — it still reports a
       hovering pointer), load the page and confirm nothing chases a finger and

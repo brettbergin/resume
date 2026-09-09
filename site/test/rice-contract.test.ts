@@ -630,11 +630,64 @@ describe('the reticle-lag utility', () => {
 })
 
 /*
+ * The terminal's block cursor. Same shape as the cases above — the animation
+ * is declared in index.css rather than as a bracketed arbitrary class, so this
+ * reads it as text — plus one structural pin the others do not need: the
+ * `@keyframes` has to stay top-level.
+ */
+describe('the blink utility', () => {
+  const body = utility('blink').body
+  const keyframes = blockAfter(/@keyframes\s+blink\b/, 'the @keyframes blink block')
+
+  it('is defined, and animates via the named keyframes', () => {
+    expect(body.trim()).not.toBe('')
+    expect(body).toMatch(/animation:[^;]*\bblink\b/)
+    expect(body).toMatch(/animation:[^;]*\binfinite\b/)
+  })
+
+  it('blinks hard on and off rather than fading', () => {
+    // A text terminal's cursor jumps between states; an eased `opacity` would
+    // read as a pulsing glow and put the cursor in the same visual family as
+    // the halo, which is a different treatment for a different thing.
+    expect(body).toMatch(/animation:[^;]*steps\(/)
+  })
+
+  it('animates opacity and nothing else', () => {
+    // Not `visibility` or a `transform`: the glyph holds its place in the line
+    // and only stops being painted.
+    const properties = [...keyframes.body.matchAll(/([\w-]+)\s*:/g)].map(
+      ([, name]) => name,
+    )
+
+    expect(properties.length).toBeGreaterThan(0)
+    expect(new Set(properties)).toEqual(new Set(['opacity']))
+  })
+
+  it('keeps its keyframes top-level, outside @theme and .dark', () => {
+    /*
+     * src/theme-contrast.test.ts parses both palettes with a regex that reads
+     * to the *first* `}`, so a nested block inside either would truncate the
+     * palette it reads and take the whole suite down. The keyframes' own
+     * percentage selectors are exactly such a nested block.
+     */
+    expect(keyframes.at).toBeGreaterThan(theme.at)
+    expect(keyframes.at).toBeGreaterThan(darkPalette.at)
+    // And it is a sibling of the utility, not nested inside it.
+    expect(body).not.toContain('@keyframes')
+  })
+
+  it('is switched off in the single reduced-motion block', () => {
+    expect(reducedMotion.body).toMatch(/\.blink\s*\{[^}]*animation:\s*none/)
+  })
+})
+
+/*
  * The crosshair's suspensions, as source pins: which overlays hand the OS
  * arrow back. The reason this is a contract and not a preference is arithmetic
- * — BootSequence's overlay is `bg-neutral-900`, and in the light palette
- * `--color-text` is that same value, so a reticle painted over it is
- * invisible at 1.00:1 while `custom-cursor` has already hidden the arrow.
+ * — BootSequence's overlay is its own `dark` subtree, so it paints the dark
+ * palette's `bg-bg` (`#0a0a0a`) under either theme, while the reticle out on
+ * the page is `--color-text`, `#111827` in the light palette: a reticle
+ * painted over it is 1.12:1 on it while `custom-cursor` has hidden the arrow.
  * Behaviour is covered in src/components/Cursor.test.tsx; this pins that the
  * two halves still name each other.
  */
@@ -654,8 +707,11 @@ describe('the overlays the reticle suspends for', () => {
     )
 
     expect(boot).toMatch(/data-overlay=["']boot["']/)
-    // And the colour that makes the suspension necessary rather than optional.
-    expect(boot).toContain('bg-neutral-900')
+    // And the palette that makes the suspension necessary rather than
+    // optional: the overlay carries `dark` itself, so `bg-bg` is the dark
+    // palette's #0a0a0a even when the page around it is light.
+    expect(boot).toMatch(/className=\{`dark\b/)
+    expect(boot).toContain('bg-bg')
   })
 
   it('agrees with the palette: --color-text is neutral-900 in light mode', () => {
