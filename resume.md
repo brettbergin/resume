@@ -52,9 +52,17 @@ Senior application security engineer with 10+ years developing and operationaliz
 
 ## Work Experience
 
+### Senior Product Security Engineer
+**GitHub** - Remote  
+*December 2025 - Present*
+
+- Build and operate agentic harnesses that apply security controls across the software development lifecycle
+- Develop AI-assisted tooling that reviews code, dependencies, and configuration changes for security defects before release
+- Partner with product engineering teams to embed automated security review into everyday developer workflows
+
 ### Senior Application Security Engineer
 **OnePay** - Remote  
-*September 2024 - Present*
+*September 2024 - December 2025*
 
 - Lead application security initiatives for fintech payment processing platform serving financial APIs
 - Implement PCI-DSS compliance controls and security frameworks for payment card data protection
