@@ -75,7 +75,7 @@ describe('resume section counts', () => {
   })
 
   it('keeps every role in the work history', () => {
-    expect(experiences).toHaveLength(8)
+    expect(experiences).toHaveLength(9)
   })
 
   it('keeps every open source project', () => {

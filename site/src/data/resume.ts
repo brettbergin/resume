@@ -30,7 +30,7 @@ export const contact: ContactInfo = {
 
 export const summary: Summary = {
   name: 'Brett Bergin',
-  title: 'Senior Application Security Engineer',
+  title: 'Senior Product Security Engineer',
   professionalSummary:
     'Senior application security engineer with 10+ years developing and operationalizing comprehensive security programs for enterprise organizations. Proven expertise in vulnerability management, penetration testing, security automation, and DevSecOps at scale. Strong technical background in cloud security, risk assessment, security architecture, and distributed systems with a track record of implementing Zero Trust security solutions supporting millions of users. Experienced in compliance frameworks including GDPR, SOX, and PCI-DSS. Active developer of AI-powered security tools and Model Context Protocol (MCP) servers for enhanced productivity in red team operations, network security monitoring, and security automation workflows.',
   resumePdfFileName: 'resume.pdf',
@@ -174,9 +174,20 @@ export const technicalSkills: SkillGroup[] = [
 /** Most recent role first, matching `resume.md`. */
 export const experiences: Experience[] = [
   {
+    company: 'GitHub',
+    title: 'Senior Product Security Engineer',
+    dates: 'December 2025 - Present',
+    location: 'Remote',
+    highlights: [
+      'Build and operate agentic harnesses that apply security controls across the software development lifecycle',
+      'Develop AI-assisted tooling that reviews code, dependencies, and configuration changes for security defects before release',
+      'Partner with product engineering teams to embed automated security review into everyday developer workflows',
+    ],
+  },
+  {
     company: 'OnePay',
     title: 'Senior Application Security Engineer',
-    dates: 'September 2024 - Present',
+    dates: 'September 2024 - December 2025',
     location: 'Remote',
     highlights: [
       'Lead application security initiatives for fintech payment processing platform serving financial APIs',
