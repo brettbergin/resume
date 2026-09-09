@@ -8,7 +8,19 @@
  * *shell*: exactly one banner, one main landmark and one contentinfo, and the
  * guarantee that every nav href has a matching id on the page, because both
  * come from `sections`.
+ *
+ * It is also the router, in the smallest sense the site needs one. There is no
+ * routing library and no second HTML entry: `location.hash` is read into
+ * state, and a hash naming the `~/tools` route (`#/tools`, `#/tools/jwt?i=…`)
+ * swaps the sections for `ToolsPage` inside the same `<main>`. A fragment
+ * costs no build change, keeps the deployment a single page — the sitemap, the
+ * metadata and the Pages workflow all still describe one document — and works
+ * on GitHub Pages, which has no rewrite rule to send `/resume/tools/` back to
+ * `index.html`. Anything the tools page needs to remember rides in that same
+ * fragment, which is the one part of a URL the browser never sends.
  */
+
+import { useEffect, useState } from 'react'
 
 import { AchievementsSection } from './components/AchievementsSection.tsx'
 import { BootSequence } from './components/BootSequence.tsx'
@@ -21,9 +33,11 @@ import { HeroSection } from './components/HeroSection.tsx'
 import { ProjectsSection } from './components/ProjectsSection.tsx'
 import { SkillsSection } from './components/SkillsSection.tsx'
 import { ThemeToggle } from './components/ThemeToggle.tsx'
+import { ToolsPage } from './components/tools/ToolsPage.tsx'
 import { sections } from './data/sections.ts'
 import type { PageSection } from './data/types.ts'
 import { FOCUS_RING } from './styles.ts'
+import { isToolsRoute } from './tools/fragment.ts'
 
 /* First focusable element in the document, and invisible until it takes focus:
  * a sticky header with a nav in front of the content would otherwise cost a
@@ -109,13 +123,60 @@ function sectionBody(section: PageSection, index: number) {
 }
 
 function App() {
+  /* The router, in full. Initialised from the hash rather than defaulted, so a
+   * link straight to a tool renders the tool on the first paint instead of
+   * flashing the resume. */
+  const [hash, setHash] = useState(() => window.location.hash)
+
+  useEffect(() => {
+    function handleHashChange() {
+      setHash(window.location.hash)
+    }
+
+    window.addEventListener('hashchange', handleHashChange)
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange)
+    }
+  }, [])
+
+  const onTools = isToolsRoute(hash)
+
+  /* Anchor scrolling across a route change, which the browser cannot do for
+   * itself: leaving `#/tools` for `#skills` is a hash change the browser
+   * resolves *before* React has rendered the sections, so it finds no element
+   * and leaves the reader at the top — and clicking the same link again fires
+   * no second `hashchange`. Scrolling here, after the render that created the
+   * element, is the one bit of navigation the fragment does not get for free.
+   * `?.()` because jsdom implements no scrollIntoView. */
+  useEffect(() => {
+    if (onTools) return
+    const id = hash.replace(/^#/, '')
+    if (id === '') return
+    document.getElementById(id)?.scrollIntoView?.()
+  }, [hash, onTools])
+
   return (
     <div className="flex min-h-svh flex-col bg-bg text-text">
-      <a href="#main" className={SKIP_LINK}>
+      <a
+        href="#main"
+        className={SKIP_LINK}
+        onClick={(event) => {
+          // Keep the tools route and its input in the fragment while moving
+          // keyboard focus past the header.
+          if (!onTools) return
+          event.preventDefault()
+          const main = document.getElementById('main')
+          main?.focus({ preventScroll: true })
+          main?.scrollIntoView?.()
+        }}
+      >
         Skip to content
       </a>
 
-      <BootSequence />
+      {/* The boot animation is the resume's front door and belongs to that
+          route only: a shared `#/tools/jwt?i=…` link opening behind a typing
+          animation would hide the thing the link was sent to show. */}
+      {onTools ? null : <BootSequence />}
 
       {/* Chrome for the whole document rather than any one section, so it
           sits outside <main>: two fixed, `pointer-events-none`, aria-hidden
@@ -134,18 +195,23 @@ function App() {
           test/layout-contract.test.ts asserts they agree. */}
       <main
         id="main"
+        tabIndex={onTools ? -1 : undefined}
         className="mx-auto w-full max-w-5xl px-4 py-4 md:px-8 md:py-8"
       >
-        {sections.map((section, index) => (
-          <section
-            key={section.id}
-            id={section.id}
-            aria-labelledby={`${section.id}-heading`}
-            className="py-8 first:pt-0"
-          >
-            {sectionBody(section, index + 1)}
-          </section>
-        ))}
+        {onTools ? (
+          <ToolsPage />
+        ) : (
+          sections.map((section, index) => (
+            <section
+              key={section.id}
+              id={section.id}
+              aria-labelledby={`${section.id}-heading`}
+              className="py-8 first:pt-0"
+            >
+              {sectionBody(section, index + 1)}
+            </section>
+          ))
+        )}
       </main>
 
       <Footer />

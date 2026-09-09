@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -467,6 +467,252 @@ describe('site README manual checklist: the rice treatments', () => {
     expect(item).toMatch(/arrow/i)
     expect(item).toMatch(/scrambl/i)
     expect(item).toMatch(/weight/i)
+  })
+})
+
+/*
+ * The `~/tools` route's documentation. Everything the section records is a
+ * decision that is invisible in the code it describes: *why* the route is a
+ * fragment and not a second Vite entry, why an option marked `secret` never
+ * reaches the URL, why two parsers are vendored, and what the fixtures were
+ * generated with. None of that can be re-derived from the modules, and a
+ * reword that quietly drops one of them takes the reasoning with it — the
+ * secret rule especially, which is a security property of shared links rather
+ * than a style preference.
+ *
+ * Facts, not phrasing: a file is named, a number is stated, a rule is
+ * asserted. The section can be rewritten around them freely.
+ */
+const toolsRouteHeading = /^## The `~\/tools` route$/m
+
+/** site/README.md's `~/tools` section, up to the next `##` heading — its own
+ * `###` subheadings included. */
+const toolsRouteSection = (): string => {
+  const start = siteReadme.search(toolsRouteHeading)
+  if (start === -1) return ''
+  const rest = siteReadme.slice(start)
+  const end = rest.slice(1).search(/^## /m)
+  return end === -1 ? rest : rest.slice(0, end + 1)
+}
+
+describe('site README tools route', () => {
+  it('has a section for the route', () => {
+    expect(siteReadme).toMatch(toolsRouteHeading)
+    expect(toolsRouteSection()).not.toBe('')
+  })
+
+  it('names the modules the route is built from', () => {
+    // Same rule every other section here is held to: a module renamed without
+    // the prose following it leaves the document pointing at a file that is
+    // gone, and this section is the only map of a ten-module directory.
+    const section = toolsRouteSection()
+
+    for (const file of [
+      'src/tools/types.ts',
+      'src/tools/fragment.ts',
+      'src/tools/registry.ts',
+      'src/components/tools/ToolsPage.tsx',
+    ]) {
+      expect(section, file).toContain(file)
+    }
+  })
+
+  it('records the hash-route decision and the alternative it rejected', () => {
+    // The second Vite entry is the option a later reader will re-propose, so
+    // the four places that assume one page have to stay written down — they
+    // are the whole cost of changing course.
+    const section = toolsRouteSection()
+
+    expect(section).toContain('#/tools')
+    expect(section).toMatch(/hashchange/)
+    expect(section).toMatch(/tools\.html/)
+    for (const assumesOnePage of [
+      'test/index-html.test.ts',
+      'test/metadata.test.ts',
+      'sitemap.xml',
+      'deploy-pages.yml',
+    ]) {
+      expect(section, assumesOnePage).toContain(assumesOnePage)
+    }
+  })
+
+  it('gives the fragment format and both of its rules', () => {
+    // The format is what a hand-written or truncated link is debugged
+    // against; `replaceState` is the difference between Back leaving the page
+    // and Back walking one history entry per keystroke.
+    const section = toolsRouteSection()
+
+    expect(section).toMatch(/#\/tools\/<id>\?i=<base64url input>&o=<base64url json options>/)
+    expect(section).toContain('replaceState')
+    expect(section).toMatch(/never\s+`?pushState/)
+  })
+
+  it('states the 4 KB ceiling and what it does to the share button', () => {
+    // The number is the one thing about the ceiling a reader cannot guess,
+    // and the greyed-out button is the only way the page admits to it.
+    const section = toolsRouteSection()
+
+    expect(section).toMatch(/4\s?KB/i)
+    expect(section).toContain('4096')
+    expect(section).toMatch(/share button/i)
+  })
+
+  it('documents the contract members the pane keys off', () => {
+    const section = toolsRouteSection()
+
+    for (const member of ['detect', 'runFile', 'live', 'ToolOption.secret']) {
+      expect(section, member).toContain(member)
+    }
+  })
+
+  it('states that secret option values never reach the fragment', () => {
+    // A security property of every shared link, and the one fact in the
+    // section whose loss would be silent: the code still filters, but nobody
+    // reviewing a new option would know it has to.
+    const section = toolsRouteSection()
+
+    expect(section).toMatch(/never\s+(?:encoded|written)\s+into\s+the\s+fragment/i)
+  })
+
+  it('lists the registry order magic paste breaks ties by', () => {
+    // The order is load-bearing twice over — the sidebar and the tie-break —
+    // so a list that has drifted from registry.ts is worse than none.
+    const section = toolsRouteSection()
+    const ids = [
+      'magic',
+      'base64',
+      'hex',
+      'url',
+      'html',
+      'jwt',
+      'hash',
+      'cert',
+      'cidr',
+      'epoch',
+    ]
+    const line = /^magic,[^\n]*$/m.exec(section)?.[0] ?? ''
+
+    expect(line).not.toBe('')
+    expect(line.split(',').map((id) => id.trim())).toEqual(ids)
+  })
+
+  it("names magic's threshold and its tie-break", () => {
+    const section = toolsRouteSection()
+
+    expect(section).toContain('0.6')
+    expect(section).toMatch(/tie/i)
+  })
+
+  it('says what each vendored module is and why it is vendored', () => {
+    const section = toolsRouteSection()
+
+    expect(section).toContain('src/tools/vendor/md5.ts')
+    expect(section).toContain('src/tools/vendor/asn1.ts')
+    // The reasons: Web Crypto has no MD5, and a general ASN.1 library is far
+    // larger than the walking the cert tool does.
+    expect(section).toMatch(/Web Crypto/)
+    expect(section).toMatch(/ASN\.1/)
+  })
+
+  it('names every fixture and the tools that generated them', () => {
+    // A fixture nobody can regenerate is a binary blob with expectations
+    // pinned to it. Read off disk so a new fixture added without a recipe
+    // fails here rather than being discovered by whoever has to refresh it.
+    const section = toolsRouteSection()
+
+    const fixtures = readdirSync(resolve(siteDir, 'test/fixtures'))
+    expect(fixtures.length).toBeGreaterThan(0)
+    for (const fixture of fixtures) {
+      expect(section, fixture).toContain(fixture)
+    }
+
+    expect(section).toContain('openssl')
+    expect(section).toContain('ssh-keygen')
+  })
+
+  it('names the suite that enforces the no-network guarantee', () => {
+    // The promise the whole page rests on, and the only reason pasting a real
+    // credential into it is reasonable.
+    const section = toolsRouteSection()
+
+    expect(section).toContain('test/tools-no-network.test.ts')
+    expect(section).toMatch(/network/i)
+  })
+})
+
+describe('site README layout shell: the tools components', () => {
+  it('names both tools components in the shell table', () => {
+    // Same rule as the rice treatments' four files: a component added to src/
+    // and never named here is one nobody can find from the document.
+    const section = layoutShellSection()
+
+    expect(section).not.toBe('')
+    for (const file of [
+      'src/components/tools/ToolsPage.tsx',
+      'src/components/tools/ToolPane.tsx',
+    ]) {
+      expect(section, file).toContain(file)
+    }
+  })
+})
+
+describe('site README accessibility: the tools route', () => {
+  it('says the a11y suite covers the tools route too', () => {
+    // The route replaces everything inside <main>, so the landmark and
+    // heading facts are re-asserted there rather than inherited. A reader
+    // consulting the table to find out what is covered would otherwise
+    // conclude only the resume is.
+    const section = accessibilitySection()
+
+    expect(section).toContain('src/a11y.test.tsx')
+    expect(section).toMatch(/#\/tools/)
+  })
+})
+
+describe('site README manual checklist: the tools route', () => {
+  it('walks the Network tab, which is the no-network promise itself', () => {
+    // test/tools-no-network.test.ts reads source; only a browser says what
+    // was actually sent. That gap is exactly what this item covers.
+    const item = itemStartingWith(/^- \[ \] \*\*`#\/tools` makes zero network/m)
+
+    expect(item).not.toBe('')
+    expect(item).toMatch(/Network tab/i)
+    expect(item).toMatch(/paste/i)
+  })
+
+  it('walks the JWT expiry countdown, which needs a real clock', () => {
+    const checklist = manualChecklist()
+
+    expect(checklist).toMatch(/countdown/i)
+    expect(checklist).toMatch(/\bexp\b/)
+  })
+
+  it('walks reloading a shared fragment URL', () => {
+    // Tool, input and output all have to come back, and the secret must not.
+    const item = itemStartingWith(/^- \[ \] \*\*A shared fragment URL/m)
+
+    expect(item).not.toBe('')
+    expect(item).toMatch(/secret/i)
+    expect(item).toMatch(/4\s?KB/i)
+  })
+
+  it('walks the route at the same widths and in both palettes', () => {
+    const item = itemStartingWith(/^- \[ \] \*\*Walk `#\/tools`/m)
+
+    expect(item).not.toBe('')
+    for (const width of ['320', '375', '768', '1024', '1440']) {
+      expect(item, `${width}px`).toContain(width)
+    }
+    expect(item).toMatch(/\blight\b/i)
+    expect(item).toMatch(/\bdark\b/i)
+  })
+})
+
+describe('root README repo layout: the tools route', () => {
+  it('points at the tools directory', () => {
+    // The one place a reader lands first, and the route is otherwise
+    // invisible from the repository root: it has no file of its own there.
+    expect(layoutSection()).toContain('site/src/tools/')
   })
 })
 

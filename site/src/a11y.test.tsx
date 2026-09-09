@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App.tsx'
 import { summary } from './data/resume.ts'
+import { routes } from './data/routes.ts'
 import { sections } from './data/sections.ts'
 
 /*
@@ -349,7 +350,7 @@ describe('links and buttons', () => {
     const menuLinks = within(dialog).getAllByRole('link')
     const controls = controlsIn(container)
 
-    expect(menuLinks).toHaveLength(sections.length)
+    expect(menuLinks).toHaveLength(sections.length + routes.length)
     for (const link of menuLinks) {
       expect(controls).toContain(link)
     }
@@ -366,6 +367,95 @@ describe('links and buttons', () => {
         classes.includes('min-h-11') || classes.includes('focus:min-h-11'),
         describeControl(control),
       ).toBe(true)
+    }
+  })
+})
+
+/*
+ * The same contract, over the other route. `~/tools` renders inside the same
+ * shell — one banner, one main, one contentinfo — but replaces everything in
+ * `<main>`, so the facts that hold for the resume have to be re-asserted here
+ * rather than assumed: a page with two h1s or a sidebar wrapped in a second
+ * `<nav>` would pass every test above and still be wrong.
+ *
+ * The hash is set before the render because the router reads it on mount, and
+ * restored afterwards so the file's other tests keep landing on the resume.
+ */
+describe('tools route', () => {
+  beforeEach(() => {
+    window.location.hash = '#/tools'
+  })
+
+  afterEach(() => {
+    window.history.replaceState(null, '', window.location.pathname)
+  })
+
+  it('renders exactly one banner, navigation, main and contentinfo', () => {
+    render(<App />)
+
+    expect(screen.getAllByRole('banner')).toHaveLength(1)
+    expect(screen.getAllByRole('navigation')).toHaveLength(1)
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+    expect(screen.getAllByRole('contentinfo')).toHaveLength(1)
+  })
+
+  it('has exactly one h1, and it is the page’s own', () => {
+    render(<App />)
+
+    const h1s = screen.getAllByRole('heading', { level: 1 })
+
+    expect(h1s).toHaveLength(1)
+    expect(h1s[0].textContent).toBe('~/tools')
+    expect(screen.getByRole('main').contains(h1s[0])).toBe(true)
+  })
+
+  it('descends through the page without skipping a level', () => {
+    const { container } = render(<App />)
+
+    const levels = headingLevels(container)
+
+    expect(levels.length).toBeGreaterThan(1)
+    expect(levels[0]).toBe(1)
+    for (const [index, level] of levels.entries()) {
+      if (index === 0) continue
+      const where = `heading ${index + 1} of ${levels.length}`
+
+      expect(level, where).toBeLessThanOrEqual(levels[index - 1] + 1)
+    }
+  })
+
+  it('gives every control a name, a focus ring and a 44px tap target', () => {
+    const { container } = render(<App />)
+
+    const controls = controlsIn(container)
+
+    // The sidebar's tool links and the pane's copy buttons are in here on top
+    // of the shell's own controls; a count guards against the route rendering
+    // nothing and the sweep passing over the header alone.
+    expect(controls.length).toBeGreaterThan(sections.length + routes.length)
+    for (const control of controls) {
+      const classes = Array.from(control.classList)
+
+      expect(accessibleName(control), describeControl(control)).not.toBe('')
+      expect(
+        classes.some((name) => name.startsWith(FOCUS_UTILITY)),
+        describeControl(control),
+      ).toBe(true)
+      expect(
+        classes.includes('min-h-11') || classes.includes('focus:min-h-11'),
+        describeControl(control),
+      ).toBe(true)
+    }
+  })
+
+  it('gives every rendered ul and ol an explicit role="list"', () => {
+    const { container } = render(<App />)
+
+    const lists = Array.from(container.querySelectorAll('ul, ol'))
+
+    expect(lists.length).toBeGreaterThan(0)
+    for (const list of lists) {
+      expect(list.getAttribute('role'), list.outerHTML).toBe('list')
     }
   })
 })

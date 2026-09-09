@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -12,6 +12,7 @@ import {
   summary,
   technicalSkills,
 } from './data/resume.ts'
+import { routes } from './data/routes.ts'
 import { sections } from './data/sections.ts'
 
 /*
@@ -28,11 +29,21 @@ import { sections } from './data/sections.ts'
  * explicitly where its links are the subject.
  */
 
-/** Every same-page anchor in the document: the skip link plus both navs. */
+/** The route hrefs, which are hash *paths* (`#/tools`) rather than anchors:
+ * nothing on the page carries `/tools` as an id, because following one swaps
+ * the page's content instead of scrolling it. They are excluded from the
+ * anchor sweep below and asserted on their own. */
+const ROUTE_HREFS = new Set(routes.map((route) => route.href))
+
+const isRouteLink = (link: HTMLAnchorElement): boolean =>
+  ROUTE_HREFS.has(link.getAttribute('href') ?? '')
+
+/** Every same-page anchor in the document — the skip link plus both navs —
+ * minus the route links, which point at no id by design. */
 function fragmentLinks(): HTMLAnchorElement[] {
   return Array.from(
     document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'),
-  )
+  ).filter((link) => !isRouteLink(link))
 }
 
 function expectTargetsExist(links: HTMLAnchorElement[]) {
@@ -531,8 +542,154 @@ describe('App nav targets', () => {
     const dialog = screen.getByRole('dialog')
     const links = within(dialog).getAllByRole('link') as HTMLAnchorElement[]
 
-    expect(links).toHaveLength(sections.length)
-    expectTargetsExist(links)
+    expect(links).toHaveLength(sections.length + routes.length)
+    expectTargetsExist(links.filter((link) => !isRouteLink(link)))
+  })
+
+  /* The route links cannot be held to the rule above — they name a view, not
+   * an element — so they get the check that does apply: that the nav offers
+   * exactly the routes the registry lists, spelled the way the router reads
+   * them. */
+  it('links to every route the registry lists', () => {
+    render(<App />)
+
+    const routeLinks = Array.from(
+      document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'),
+    ).filter(isRouteLink)
+
+    expect(routeLinks).toHaveLength(routes.length)
+    for (const route of routes) {
+      const link = screen.getByRole('link', { name: route.label })
+
+      expect(link.getAttribute('href')).toBe(route.href)
+      expect(document.getElementById(route.href.slice(1))).toBeNull()
+    }
+  })
+})
+
+/*
+ * The router. There is no routing library: `App` reads `location.hash` and
+ * swaps what goes inside the one `<main>`, so these assert the swap, the
+ * `hashchange` that drives it, and the two things that must *not* move with it
+ * — the landmark itself and the boot animation, which belongs to the resume.
+ */
+describe('App tools route', () => {
+  /** Set the hash without firing an event, for a render that reads it on
+   * mount — the shared-link case. */
+  function setHash(hash: string) {
+    window.history.replaceState(null, '', `${window.location.pathname}${hash}`)
+  }
+
+  /** Follow a link the way a browser does: the address bar first, then the
+   * event. */
+  async function navigate(hash: string) {
+    await act(async () => {
+      window.location.hash = hash
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    })
+  }
+
+  afterEach(() => {
+    setHash('')
+    // The scroll test installs one; jsdom ships none, and the rest of the file
+    // is written for a page that cannot scroll.
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+  })
+
+  it('renders the tools page inside <main> instead of the sections', () => {
+    setHash('#/tools')
+    render(<App />)
+
+    const main = screen.getByRole('main')
+
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+    expect(main.id).toBe('main')
+    expect(main.querySelectorAll('section[id]')).toHaveLength(0)
+    expect(
+      within(main).getByRole('heading', { level: 1 }).textContent,
+    ).toBe('~/tools')
+  })
+
+  it('keeps the header, the skip link and the footer across the routes', () => {
+    setHash('#/tools')
+    render(<App />)
+
+    expect(screen.getAllByRole('banner')).toHaveLength(1)
+    expect(screen.getAllByRole('contentinfo')).toHaveLength(1)
+    expect(
+      screen.getByRole('link', { name: 'Skip to content' }).getAttribute('href'),
+    ).toBe('#main')
+  })
+
+  it('renders the boot sequence on the resume and not on the tools route', () => {
+    // The overlay plays once per session and marks itself seen when dismissed,
+    // which earlier tests in this file do by clicking; clear the flag so the
+    // comparison below is between the two routes and not between two visits.
+    window.sessionStorage.clear()
+    const { unmount } = render(<App />)
+
+    expect(document.querySelector('[data-overlay="boot"]')).not.toBeNull()
+    unmount()
+
+    // The animation is the resume's front door; a shared tool link must not
+    // open behind it.
+    window.sessionStorage.clear()
+    setHash('#/tools')
+    render(<App />)
+
+    expect(document.querySelector('[data-overlay="boot"]')).toBeNull()
+  })
+
+  it('switches between the routes on hashchange, without a reload', async () => {
+    render(<App />)
+
+    expect(screen.getByRole('main').querySelectorAll('section[id]')).toHaveLength(
+      sections.length,
+    )
+
+    await navigate('#/tools')
+    expect(screen.getByRole('main').querySelectorAll('section[id]')).toHaveLength(
+      0,
+    )
+
+    await navigate('#about')
+    expect(screen.getByRole('main').querySelectorAll('section[id]')).toHaveLength(
+      sections.length,
+    )
+  })
+
+  it('scrolls to the section a link out of the tools route names', async () => {
+    // The browser resolved `#skills` while the tools page was still on screen
+    // and found nothing; the section exists only after the render this
+    // triggers, so the scroll has to happen here or not at all.
+    // jsdom implements no scrollIntoView at all, so this both stands in for it
+    // and records which element was asked to scroll.
+    const scrolled: Element[] = []
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
+      scrolled.push(this)
+    }
+    setHash('#/tools')
+    render(<App />)
+
+    await navigate('#skills')
+
+    expect(scrolled).toEqual([document.getElementById('skills')])
+  })
+
+  it('removes its hashchange listener on unmount', () => {
+    const add = vi.spyOn(window, 'addEventListener')
+    const remove = vi.spyOn(window, 'removeEventListener')
+    const { unmount } = render(<App />)
+
+    expect(
+      add.mock.calls.filter(([type]) => type === 'hashchange'),
+    ).toHaveLength(1)
+
+    unmount()
+
+    expect(
+      remove.mock.calls.filter(([type]) => type === 'hashchange'),
+    ).toHaveLength(1)
   })
 })
 

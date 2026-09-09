@@ -2,8 +2,12 @@
  * The sticky top bar: wordmark, section nav, and — below the `md` breakpoint —
  * a menu button that opens a full-screen panel holding the same links.
  *
- * Both navs map over `sections`, so the nav and the page's anchors can never
- * drift apart; there is deliberately no second, hand-written list of links.
+ * Both navs map over the same list — every section in `sections`, then every
+ * route in `routes` — so the nav and the page's anchors can never drift apart;
+ * there is deliberately no second, hand-written list of links. The route links
+ * (`~/tools`) render inside these same two navs rather than a nav of their
+ * own: a third navigation landmark is one more thing for a screen reader to
+ * step past, for a link or two.
  *
  * The panel is a hand-rolled dialog (no headless UI dependency), which means
  * the three things a browser does not do for us are done here explicitly:
@@ -19,6 +23,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 
 import { summary } from '../data/resume.ts'
+import { routes } from '../data/routes.ts'
 import { sections } from '../data/sections.ts'
 import { FOCUS_RING, TAP_TARGET } from '../styles.ts'
 import { useScrollLock } from '../useScrollLock.ts'
@@ -33,6 +38,25 @@ const FOCUSABLE = 'a[href], button:not([disabled])'
  * the mobile menu stops being displayed. Kept in step with the `md:` classes
  * below by `Header.test.tsx`. */
 const DESKTOP_QUERY = '(min-width: 48rem)'
+
+/* Every link both navs render, in order: the page's sections first, then the
+ * routes. Built once at module scope because neither list depends on anything
+ * a render knows, and shared by the two navs so a link cannot appear in one
+ * and not the other. A route carries its href verbatim — `#/tools` is a hash
+ * path, not an element id — while a section's is derived from its id, which is
+ * what keeps the anchors and the page in step. */
+const NAV_LINKS: readonly { key: string; href: string; label: string }[] = [
+  ...sections.map((section) => ({
+    key: section.id,
+    href: `#${section.id}`,
+    label: section.label,
+  })),
+  ...routes.map((route) => ({
+    key: route.id,
+    href: route.href,
+    label: route.label,
+  })),
+]
 
 function focusablesIn(container: HTMLElement | null): HTMLElement[] {
   if (!container) return []
@@ -169,13 +193,13 @@ export function Header({ children }: { children?: ReactNode }) {
             aria-label="Primary"
             className="hidden md:flex md:items-center md:gap-2"
           >
-            {sections.map((section) => (
+            {NAV_LINKS.map((link) => (
               <a
-                key={section.id}
-                href={`#${section.id}`}
+                key={link.key}
+                href={link.href}
                 className={`inline-flex ${TAP_TARGET} items-center justify-center overflow-hidden rounded-pill px-3 text-sm text-muted sweep hover:text-accent hover:glow-text focus-visible:text-accent focus-visible:glow-text ${FOCUS_RING}`}
               >
-                {section.label}
+                {link.label}
               </a>
             ))}
           </nav>
@@ -243,14 +267,14 @@ export function Header({ children }: { children?: ReactNode }) {
             aria-label="Site sections"
             className="flex flex-col gap-2 overflow-y-auto p-4"
           >
-            {sections.map((section) => (
+            {NAV_LINKS.map((link) => (
               <a
-                key={section.id}
-                href={`#${section.id}`}
+                key={link.key}
+                href={link.href}
                 onClick={() => setOpen(false)}
                 className={`flex ${TAP_TARGET} items-center rounded-card px-4 text-lg text-text hover:bg-surface ${FOCUS_RING}`}
               >
-                {section.label}
+                {link.label}
               </a>
             ))}
           </nav>
