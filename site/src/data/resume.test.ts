@@ -79,7 +79,7 @@ describe('resume section counts', () => {
   })
 
   it('keeps every open source project', () => {
-    expect(projects).toHaveLength(7)
+    expect(projects).toHaveLength(9)
   })
 })
 

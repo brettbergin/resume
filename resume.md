@@ -30,13 +30,15 @@ Senior application security engineer with 10+ years developing and operationaliz
 
 | Project | Description |
 |---------|-------------|
-| [adversary-mcp-server](https://github.com/brettbergin/adversary-mcp-server) | Model Context Protocol server for adversarial security testing and red team operations |
-| [pihole-mcp-server](https://github.com/brettbergin/pihole-mcp-server) | MCP integration server for Pi-hole DNS filtering and network security monitoring |
-| [ChatGPTCodeScanner](https://github.com/brettbergin/ChatGPTCodeScanner) | AI-powered static analysis tool using ChatGPT, Python & Flask |
-| [CalGEMDataIngest](https://github.com/brettbergin/CalGEMDataIngest) | Data pipeline for California Department of Conservation using Python & Jupyter |
-| [SystemStatsAPI](https://github.com/brettbergin/SystemStatsAPI) | System telemetry collection and API service in Python & Flask |
+| [sbxloop](https://github.com/brettbergin/sbxloop) | Sandboxed agent loop that carries an issue through to a pull request, in Python |
+| [github-auditor](https://github.com/brettbergin/github-auditor) | GitHub Actions and repository security posture auditor in Python & SQLite |
+| [entrygraph](https://github.com/brettbergin/entrygraph) | Codebase graph for entrypoint and reachability queries in Python & tree-sitter |
 | [DisableMySSH](https://github.com/brettbergin/DisableMySSH) | AWS security automation to disable SSH access from 0.0.0.0/0 |
 | [DisableMySSH-Infra](https://github.com/brettbergin/DisableMySSH-Infra) | Terraform infrastructure automation for DisableMySSH |
+| [SystemStatsAPI](https://github.com/brettbergin/SystemStatsAPI) | System telemetry collection and API service in Python & Flask |
+| [SystemStatsApp](https://github.com/brettbergin/SystemStatsApp) | Web dashboard front end for System Stats in Python, HTML & JavaScript |
+| [SystemStatsClient](https://github.com/brettbergin/SystemStatsClient) | Command-line client for the System Stats API in Python |
+| [CalGEMDataIngest](https://github.com/brettbergin/CalGEMDataIngest) | Data pipeline for California Department of Conservation using Python & Jupyter |
 
 ## Technical Skills
 

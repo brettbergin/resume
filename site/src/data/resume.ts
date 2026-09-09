@@ -276,33 +276,22 @@ export const experiences: Experience[] = [
 
 export const projects: Project[] = [
   {
-    name: 'adversary-mcp-server',
+    name: 'sbxloop',
     description:
-      'Model Context Protocol server for adversarial security testing and red team operations',
-    url: 'https://github.com/brettbergin/adversary-mcp-server',
+      'Sandboxed agent loop that carries an issue through to a pull request, in Python',
+    url: 'https://github.com/brettbergin/sbxloop',
   },
   {
-    name: 'pihole-mcp-server',
+    name: 'github-auditor',
     description:
-      'MCP integration server for Pi-hole DNS filtering and network security monitoring',
-    url: 'https://github.com/brettbergin/pihole-mcp-server',
+      'GitHub Actions and repository security posture auditor in Python & SQLite',
+    url: 'https://github.com/brettbergin/github-auditor',
   },
   {
-    name: 'ChatGPTCodeScanner',
+    name: 'entrygraph',
     description:
-      'AI-powered static analysis tool using ChatGPT, Python & Flask',
-    url: 'https://github.com/brettbergin/ChatGPTCodeScanner',
-  },
-  {
-    name: 'CalGEMDataIngest',
-    description:
-      'Data pipeline for California Department of Conservation using Python & Jupyter',
-    url: 'https://github.com/brettbergin/CalGEMDataIngest',
-  },
-  {
-    name: 'SystemStatsAPI',
-    description: 'System telemetry collection and API service in Python & Flask',
-    url: 'https://github.com/brettbergin/SystemStatsAPI',
+      'Codebase graph for entrypoint and reachability queries in Python & tree-sitter',
+    url: 'https://github.com/brettbergin/entrygraph',
   },
   {
     name: 'DisableMySSH',
@@ -313,5 +302,27 @@ export const projects: Project[] = [
     name: 'DisableMySSH-Infra',
     description: 'Terraform infrastructure automation for DisableMySSH',
     url: 'https://github.com/brettbergin/DisableMySSH-Infra',
+  },
+  {
+    name: 'SystemStatsAPI',
+    description: 'System telemetry collection and API service in Python & Flask',
+    url: 'https://github.com/brettbergin/SystemStatsAPI',
+  },
+  {
+    name: 'SystemStatsApp',
+    description:
+      'Web dashboard front end for System Stats in Python, HTML & JavaScript',
+    url: 'https://github.com/brettbergin/SystemStatsApp',
+  },
+  {
+    name: 'SystemStatsClient',
+    description: 'Command-line client for the System Stats API in Python',
+    url: 'https://github.com/brettbergin/SystemStatsClient',
+  },
+  {
+    name: 'CalGEMDataIngest',
+    description:
+      'Data pipeline for California Department of Conservation using Python & Jupyter',
+    url: 'https://github.com/brettbergin/CalGEMDataIngest',
   },
 ]
