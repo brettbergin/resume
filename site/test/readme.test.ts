@@ -39,6 +39,8 @@ const viteConfig = readSiteFile('vite.config.ts')
 const layoutHeading = /^## Repo layout$/m
 const checklistHeading = /^### Manual check:/m
 const accessibilityHeading = /^## Accessibility$/m
+const layoutShellHeading = /^## Layout shell$/m
+const treatmentsHeading = /^### The accent's treatments/m
 
 /** The root README from the "Repo layout" heading to the end of the file. */
 const layoutSection = (): string => {
@@ -59,6 +61,28 @@ const accessibilitySection = (): string => {
   const rest = siteReadme.slice(start)
   const end = rest.slice(1).search(/^## /m)
   return end === -1 ? rest : rest.slice(0, end + 1)
+}
+
+/** site/README.md's Layout shell section (which contains both the shell table
+ * and the Shared hooks table), up to the next `##` heading. */
+const layoutShellSection = (): string => {
+  const start = siteReadme.search(layoutShellHeading)
+  if (start === -1) return ''
+  const rest = siteReadme.slice(start)
+  const end = rest.slice(1).search(/^## /m)
+  return end === -1 ? rest : rest.slice(0, end + 1)
+}
+
+/** site/README.md's treatments section, up to the next heading of any level. */
+const treatmentsSection = (): string => {
+  const start = siteReadme.search(treatmentsHeading)
+  if (start === -1) return ''
+  const rest = siteReadme.slice(start)
+  // Past the heading's own line, so the `###` it starts with is not the `###`
+  // the search below stops at.
+  const body = rest.indexOf('\n') + 1
+  const end = rest.slice(body).search(/^#{2,3} /m)
+  return end === -1 ? rest : rest.slice(0, body + end)
 }
 
 /** The URL in site/README.md's `| Live URL | … |` table row. */
@@ -183,6 +207,156 @@ describe('site README manual checklist', () => {
 
     expect(checklist).toContain('Lighthouse')
     expect(checklist).toMatch(/accessibility[^.]*\b95\b/i)
+  })
+})
+
+/*
+ * The crosshair cursor, the decrypt-in headings and the weight-reactive hero
+ * name are all pointer/animation behaviours, and jsdom paints none of them: it
+ * applies no stylesheet, has no IntersectionObserver, reports no real pointer
+ * and lays nothing out. Every suite that covers them therefore covers the
+ * wiring — a class toggled, a property written, a string returned — and the
+ * behaviour itself is only ever seen in a browser. So the checklist below is
+ * where their acceptance actually lives, and these assertions keep it from
+ * being reworded away. They pin the facts (a case is walked, a file is named)
+ * and not the phrasing.
+ */
+describe('site README rice treatments', () => {
+  it('names the four new source files in its tables', () => {
+    // The shell table and the Shared hooks table are what a reader consults to
+    // find out where a behaviour lives. A file added to src/ and never named
+    // here is a component nobody can find from the document.
+    const section = layoutShellSection()
+
+    expect(section).not.toBe('')
+    for (const file of [
+      'src/components/Cursor.tsx',
+      'src/components/SectionHeading.tsx',
+      'src/useDecrypt.ts',
+      'src/useHeroWeight.ts',
+    ]) {
+      expect(section, file).toContain(file)
+    }
+  })
+
+  it('documents the hero-weight utility and the custom-cursor class', () => {
+    // The two names that exist in index.css and nowhere a component's class
+    // list would show them: one is written by a hook, the other toggled on
+    // <html> by a component.
+    const section = treatmentsSection()
+
+    expect(section).not.toBe('')
+    expect(section).toContain('hero-weight')
+    expect(section).toContain('custom-cursor')
+    // Same case as hero-weight: a utility no component's class list explains,
+    // carried by one element the reader cannot see in a class list either.
+    expect(section).toContain('reticle-lag')
+  })
+
+  it('says the section headings now come from SectionHeading', () => {
+    // The glow's "Carried by" cell used to say "every section <h2>", which was
+    // true while five components each wrote their own. They no longer do, and
+    // a reader chasing a missing halo has to be sent to the right file.
+    expect(treatmentsSection()).toContain('SectionHeading')
+  })
+
+  it('names the four new suites in the Accessibility table', () => {
+    // Same rule the section's existing suites are held to: a suite renamed or
+    // dropped without the prose following it leaves the document pointing at a
+    // file that is gone.
+    const section = accessibilitySection()
+
+    for (const file of [
+      'src/components/Cursor.test.tsx',
+      'src/useDecrypt.test.ts',
+      'src/components/SectionHeading.test.tsx',
+      'src/useHeroWeight.test.ts',
+    ]) {
+      expect(section, file).toContain(file)
+    }
+  })
+})
+
+describe('site README manual checklist: the rice treatments', () => {
+  it('walks the crosshair cursor and its hover state', () => {
+    const checklist = manualChecklist()
+
+    expect(checklist).toMatch(/crosshair/i)
+    expect(checklist).toMatch(/\bring\b/i)
+  })
+
+  it('walks the three states that hand the OS arrow back', () => {
+    // All three are suspensions rather than unmounts, and all three are
+    // states a person can get into by accident and find a frozen — or
+    // invisible — reticle in. The boot overlay is the one that is not a near
+    // miss: it is `bg-neutral-900` and the reticle is `--color-text`, the same
+    // colour in the light palette, so a first load with the arrow hidden and
+    // the reticle painted has no visible pointer at all.
+    const checklist = manualChecklist()
+
+    expect(checklist).toMatch(/mobile menu/i)
+    expect(checklist).toMatch(/blur|focus/i)
+    expect(checklist).toMatch(/boot/i)
+  })
+
+  it('walks the pointer leaving the document, which blur does not cover', () => {
+    // Moving into the tab bar or off onto a second monitor sends no further
+    // pointermove and fires no blur, so this is its own check: both elements
+    // have to leave with the pointer rather than stay parked at the edge.
+    const checklist = manualChecklist()
+
+    expect(checklist).toMatch(/tab bar|url bar|second monitor/i)
+  })
+
+  it('walks the touch case, where there is no reticle at all', () => {
+    // The `(hover: none)` early return can only be seen on a device, and the
+    // check is a DOM check as much as a visual one.
+    const checklist = manualChecklist()
+
+    expect(checklist).toMatch(/touch/i)
+    expect(checklist).toMatch(/reticle/i)
+  })
+
+  it('walks the decrypt-in headings and what a screen reader hears', () => {
+    // The scramble is paint; the accessible name must be the real label at
+    // every frame, and only a real screen reader says whether it is.
+    const checklist = manualChecklist()
+
+    expect(checklist).toMatch(/scrambl/i)
+    expect(checklist).toMatch(/screen reader|VoiceOver|NVDA/i)
+  })
+
+  it('pins the numbered prefixes, in nav order and by their real range', () => {
+    // About is position 1 and is the hero's <h1>, which carries no prefix, so
+    // the numbered headings start at 02. A checklist that said 01 would send a
+    // reviewer looking for a number the page never paints.
+    const checklist = manualChecklist()
+
+    expect(checklist).toContain('02 / Skills')
+    expect(checklist).toContain('06 / Contact')
+  })
+
+  it('walks the hero name following the pointer and settling back', () => {
+    const checklist = manualChecklist()
+
+    expect(checklist).toMatch(/hero name/i)
+    expect(checklist).toMatch(/rest weight/i)
+  })
+
+  it('walks reduced motion over all three treatments', () => {
+    // One preference switches off three separate things in three separate
+    // places, so the item has to name all three or it only covers the one the
+    // reviewer happens to remember.
+    // To the next top-level checklist item or the end of the file — `$` would
+    // be the end of the *line* under the `m` flag the heading matches need.
+    const reducedMotion =
+      /^- \[ \] \*\*Reduced motion[\s\S]*?(?=\n- \[ \]|\n## |(?![\s\S]))/m
+    const item = reducedMotion.exec(manualChecklist())?.[0] ?? ''
+
+    expect(item).not.toBe('')
+    expect(item).toMatch(/arrow/i)
+    expect(item).toMatch(/scrambl/i)
+    expect(item).toMatch(/weight/i)
   })
 })
 

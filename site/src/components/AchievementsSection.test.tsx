@@ -22,10 +22,13 @@ import { AchievementsSection } from './AchievementsSection.tsx'
 
 const HEADING_ID = 'achievements-heading'
 const HEADING = 'Key Achievements'
+/** The section's 1-based place in src/data/sections.ts, which is the number
+ * SectionHeading paints in front of the label. App.tsx passes it in. */
+const HEADING_INDEX = 5
 
 function renderSection() {
   return render(
-    <AchievementsSection headingId={HEADING_ID} heading={HEADING} />,
+    <AchievementsSection headingId={HEADING_ID} heading={HEADING} index={HEADING_INDEX} />,
   )
 }
 
@@ -56,7 +59,12 @@ describe('AchievementsSection', () => {
     const headings = screen.getAllByRole('heading', { level: 2 })
 
     expect(headings).toHaveLength(1)
-    expect(headings[0].textContent).toBe(HEADING)
+    // By accessible name: SectionHeading's `NN /` prefix and its scrambling
+    // copy of the label are both aria-hidden, so the element's textContent is
+    // no longer the label on its own.
+    expect(headings[0]).toBe(
+      screen.getByRole('heading', { level: 2, name: HEADING }),
+    )
     // App.tsx labels the wrapping <section> with this id; the section owns it.
     expect(headings[0].id).toBe(HEADING_ID)
     // The hero owns the document's only <h1>.
@@ -133,9 +141,15 @@ describe('AchievementsSection', () => {
       .map((achievement) => achievement.text)
       .join(' ')
 
-    // Every run of digits on the page traces back to the resume's own wording;
+    // The section heading is excluded: SectionHeading paints the section's
+    // place in the nav (`05 /`) in front of the label, and that ordinal is
+    // chrome rather than a figure about the achievements.
+    const content = container.cloneNode(true) as HTMLElement
+    content.querySelector('h2')?.remove()
+
+    // Every run of digits below it traces back to the resume's own wording;
     // a count derived in the view (7 achievements, a made-up multiple) fails.
-    for (const digits of (container.textContent ?? '').match(/\d+/g) ?? []) {
+    for (const digits of (content.textContent ?? '').match(/\d+/g) ?? []) {
       expect(fromData).toContain(digits)
     }
   })

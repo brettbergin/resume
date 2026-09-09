@@ -35,6 +35,7 @@ import { useState } from 'react'
 import { experiences } from '../data/resume.ts'
 import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../styles.ts'
 import { ExperienceEntry } from './ExperienceEntry.tsx'
+import { SectionHeading } from './SectionHeading.tsx'
 
 /** How many of the most recent roles render unconditionally. The rest
  * collapse behind the section-level toggle below. */
@@ -43,9 +44,11 @@ const VISIBLE_ROLES = 3
 export function ExperienceSection({
   headingId,
   heading,
+  index,
 }: {
   headingId: string
   heading: string
+  index: number
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -61,9 +64,9 @@ export function ExperienceSection({
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 id={headingId} className="glow-text text-2xl font-medium">
+      <SectionHeading id={headingId} index={index}>
         {heading}
-      </h2>
+      </SectionHeading>
 
       {/* No flex gap between entries: the connecting line is each entry's left
           border, and a gap would cut it into segments. Entries space

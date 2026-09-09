@@ -98,6 +98,25 @@ describe('App sections', () => {
       sections.map((section) => section.id),
     )
   })
+
+  it('numbers each section heading by its place in the nav', () => {
+    render(<App />)
+
+    // SectionHeading paints the number; the number comes from here, so nav
+    // order and the on-page numbering cannot drift. About is position 1 and is
+    // the hero — an <h1> with no prefix — so the run starts at 02.
+    for (const [index, section] of sections.entries()) {
+      const scope = within(document.getElementById(section.id)!)
+      const prefix = `${String(index + 1).padStart(2, '0')} /`
+
+      if (section.id === 'about') {
+        expect(scope.queryByText(prefix)).toBeNull()
+        continue
+      }
+
+      expect(scope.getByText(prefix)).toBeDefined()
+    }
+  })
 })
 
 /*
@@ -183,7 +202,12 @@ describe('App skills section', () => {
 
     expect(heading).not.toBeNull()
     expect(skills().contains(heading)).toBe(true)
-    expect(heading!.textContent).toBe(skillsLabel)
+    // By accessible name, not textContent: SectionHeading also paints an
+    // aria-hidden `NN /` prefix and an aria-hidden scrambling copy of the
+    // label, so the element's text is not the label on its own.
+    expect(heading).toBe(
+      within(skills()).getByRole('heading', { level: 2, name: skillsLabel }),
+    )
   })
 
   it('keeps the section heading at level 2, below the hero h1', () => {
@@ -192,7 +216,9 @@ describe('App skills section', () => {
     const headings = within(skills()).getAllByRole('heading', { level: 2 })
 
     expect(headings).toHaveLength(1)
-    expect(headings[0].textContent).toBe(skillsLabel)
+    expect(headings[0]).toBe(
+      within(skills()).getByRole('heading', { level: 2, name: skillsLabel }),
+    )
     expect(within(skills()).queryAllByRole('heading', { level: 1 })).toEqual([])
   })
 
@@ -238,7 +264,12 @@ describe('App experience section', () => {
 
     expect(heading).not.toBeNull()
     expect(experience().contains(heading)).toBe(true)
-    expect(heading!.textContent).toBe(experienceLabel)
+    // By accessible name, not textContent: SectionHeading also paints an
+    // aria-hidden `NN /` prefix and an aria-hidden scrambling copy of the
+    // label, so the element's text is not the label on its own.
+    expect(heading).toBe(
+      within(experience()).getByRole('heading', { level: 2, name: experienceLabel }),
+    )
   })
 
   it('keeps one section heading at level 2, with the roles below it', async () => {
@@ -248,7 +279,9 @@ describe('App experience section', () => {
     const headings = scope.getAllByRole('heading', { level: 2 })
 
     expect(headings).toHaveLength(1)
-    expect(headings[0].textContent).toBe(experienceLabel)
+    expect(headings[0]).toBe(
+      within(experience()).getByRole('heading', { level: 2, name: experienceLabel }),
+    )
     expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
 
     // The section-level toggle (ExperienceSection.test.tsx) leaves the older
@@ -317,7 +350,12 @@ describe('App projects section', () => {
 
     expect(heading).not.toBeNull()
     expect(projectsSection().contains(heading)).toBe(true)
-    expect(heading!.textContent).toBe(projectsLabel)
+    // By accessible name, not textContent: SectionHeading also paints an
+    // aria-hidden `NN /` prefix and an aria-hidden scrambling copy of the
+    // label, so the element's text is not the label on its own.
+    expect(heading).toBe(
+      within(projectsSection()).getByRole('heading', { level: 2, name: projectsLabel }),
+    )
   })
 
   it('keeps one section heading at level 2 and no competing h1', () => {
@@ -327,7 +365,9 @@ describe('App projects section', () => {
     const headings = scope.getAllByRole('heading', { level: 2 })
 
     expect(headings).toHaveLength(1)
-    expect(headings[0].textContent).toBe(projectsLabel)
+    expect(headings[0]).toBe(
+      within(projectsSection()).getByRole('heading', { level: 2, name: projectsLabel }),
+    )
     expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
   })
 
@@ -394,7 +434,12 @@ describe('App achievements section', () => {
 
     expect(heading).not.toBeNull()
     expect(achievementsSection().contains(heading)).toBe(true)
-    expect(heading!.textContent).toBe(achievementsLabel)
+    // By accessible name, not textContent: SectionHeading also paints an
+    // aria-hidden `NN /` prefix and an aria-hidden scrambling copy of the
+    // label, so the element's text is not the label on its own.
+    expect(heading).toBe(
+      within(achievementsSection()).getByRole('heading', { level: 2, name: achievementsLabel }),
+    )
   })
 
   it('keeps one section heading at level 2 and no competing h1', () => {
@@ -404,7 +449,9 @@ describe('App achievements section', () => {
     const headings = scope.getAllByRole('heading', { level: 2 })
 
     expect(headings).toHaveLength(1)
-    expect(headings[0].textContent).toBe(achievementsLabel)
+    expect(headings[0]).toBe(
+      within(achievementsSection()).getByRole('heading', { level: 2, name: achievementsLabel }),
+    )
     expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
   })
 })
@@ -447,7 +494,12 @@ describe('App contact section', () => {
 
     expect(heading).not.toBeNull()
     expect(contactSection().contains(heading)).toBe(true)
-    expect(heading!.textContent).toBe(contactLabel)
+    // By accessible name, not textContent: SectionHeading also paints an
+    // aria-hidden `NN /` prefix and an aria-hidden scrambling copy of the
+    // label, so the element's text is not the label on its own.
+    expect(heading).toBe(
+      within(contactSection()).getByRole('heading', { level: 2, name: contactLabel }),
+    )
   })
 
   it('keeps one section heading at level 2 and no competing h1', () => {
@@ -457,7 +509,9 @@ describe('App contact section', () => {
     const headings = scope.getAllByRole('heading', { level: 2 })
 
     expect(headings).toHaveLength(1)
-    expect(headings[0].textContent).toBe(contactLabel)
+    expect(headings[0]).toBe(
+      within(contactSection()).getByRole('heading', { level: 2, name: contactLabel }),
+    )
     expect(scope.queryAllByRole('heading', { level: 1 })).toEqual([])
   })
 })

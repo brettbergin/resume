@@ -128,6 +128,45 @@ describe('HeroSection', () => {
     }
   })
 
+  it('sets the name as oversized, weight-reactive display type', () => {
+    render(<HeroSection headingId={HEADING_ID} />)
+
+    const classes = screen
+      .getByRole('heading', { level: 1 })
+      .className.split(/\s+/)
+
+    // The axis itself is index.css's `hero-weight`; src/useHeroWeight.ts only
+    // writes the `--hero-wght` the utility reads.
+    expect(classes).toContain('hero-weight')
+    // One oversized line, at named steps rather than a bracketed size —
+    // test/layout-contract.test.ts keeps arbitrary font sizes out of here.
+    expect(classes).toContain('text-5xl')
+    expect(classes).toContain('md:text-7xl')
+    expect(classes).toContain('tracking-tight')
+    // The halo stays: test/rice-contract.test.ts pins it on this tag.
+    expect(classes).toContain('glow-text')
+  })
+
+  it("moves the name's weight with the pointer over the hero", () => {
+    const { container } = render(<HeroSection headingId={HEADING_ID} />)
+
+    const hero = container.firstElementChild as HTMLElement
+    // jsdom lays nothing out, and the hook skips a zero-width rect.
+    hero.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect
+
+    hero.dispatchEvent(
+      new MouseEvent('pointermove', { clientX: 300, clientY: 60, bubbles: true }),
+    )
+
+    // The property is written on the container and inherited by the <h1>,
+    // which is what carries `hero-weight`. Its exact mapping is
+    // src/useHeroWeight.test.ts's; here it only has to be on the axis.
+    const weight = Number(hero.style.getPropertyValue('--hero-wght'))
+    expect(weight).toBeGreaterThanOrEqual(300)
+    expect(weight).toBeLessThanOrEqual(800)
+  })
+
   it('stacks the CTAs on a phone and puts them in a row from sm up', () => {
     render(<HeroSection headingId={HEADING_ID} />)
 

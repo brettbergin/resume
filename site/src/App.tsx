@@ -13,6 +13,7 @@
 import { AchievementsSection } from './components/AchievementsSection.tsx'
 import { BootSequence } from './components/BootSequence.tsx'
 import { ContactSection } from './components/ContactSection.tsx'
+import { Cursor } from './components/Cursor.tsx'
 import { ExperienceSection } from './components/ExperienceSection.tsx'
 import { Footer } from './components/Footer.tsx'
 import { Header } from './components/Header.tsx'
@@ -42,25 +43,59 @@ const SKIP_LINK =
  * registry's either way — it owns the anchor id the nav and the scroll offset
  * depend on. A filled section renders the heading its wrapper is labelled by,
  * from the registry's label so the nav and the on-page heading cannot drift;
- * the rest keep the placeholder. */
-function sectionBody(section: PageSection) {
+ * the rest keep the placeholder.
+ *
+ * `index` is the section's 1-based place in the registry, which is the number
+ * SectionHeading paints in front of the label. It is passed down rather than
+ * counted inside a section because only this map knows the nav order: About is
+ * 1 and is the hero, so the numbered headings run `02 / Skills` to
+ * `06 / Contact`. */
+function sectionBody(section: PageSection, index: number) {
   const headingId = `${section.id}-heading`
 
   switch (section.id) {
     case 'about':
       return <HeroSection headingId={headingId} />
     case 'skills':
-      return <SkillsSection headingId={headingId} heading={section.label} />
+      return (
+        <SkillsSection
+          headingId={headingId}
+          heading={section.label}
+          index={index}
+        />
+      )
     case 'experience':
-      return <ExperienceSection headingId={headingId} heading={section.label} />
+      return (
+        <ExperienceSection
+          headingId={headingId}
+          heading={section.label}
+          index={index}
+        />
+      )
     case 'projects':
-      return <ProjectsSection headingId={headingId} heading={section.label} />
+      return (
+        <ProjectsSection
+          headingId={headingId}
+          heading={section.label}
+          index={index}
+        />
+      )
     case 'achievements':
       return (
-        <AchievementsSection headingId={headingId} heading={section.label} />
+        <AchievementsSection
+          headingId={headingId}
+          heading={section.label}
+          index={index}
+        />
       )
     case 'contact':
-      return <ContactSection headingId={headingId} heading={section.label} />
+      return (
+        <ContactSection
+          headingId={headingId}
+          heading={section.label}
+          index={index}
+        />
+      )
     default:
       return (
         <>
@@ -82,6 +117,12 @@ function App() {
 
       <BootSequence />
 
+      {/* Chrome for the whole document rather than any one section, so it
+          sits outside <main>: two fixed, `pointer-events-none`, aria-hidden
+          elements that paint in place of the OS arrow. It renders nothing at
+          all on a touch screen or under reduced motion. */}
+      <Cursor />
+
       <Header>
         <ThemeToggle />
       </Header>
@@ -95,14 +136,14 @@ function App() {
         id="main"
         className="mx-auto w-full max-w-5xl px-4 py-4 md:px-8 md:py-8"
       >
-        {sections.map((section) => (
+        {sections.map((section, index) => (
           <section
             key={section.id}
             id={section.id}
             aria-labelledby={`${section.id}-heading`}
             className="py-8 first:pt-0"
           >
-            {sectionBody(section)}
+            {sectionBody(section, index + 1)}
           </section>
         ))}
       </main>

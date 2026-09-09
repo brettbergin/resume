@@ -93,6 +93,16 @@ describe('the overlay', () => {
     expect(overlay!.hasAttribute('inert')).toBe(true)
   })
 
+  it('marks itself as an overlay, so the custom cursor suspends over it', () => {
+    // Being neither a dialog nor announced, this attribute is the only thing
+    // src/components/Cursor.tsx can find it by — and it has to, because the
+    // reticle is `--color-text` on this overlay's own `bg-neutral-900`: the
+    // same colour in the light palette, with the OS arrow already hidden.
+    const overlay = overlayIn(render(<BootSequence />).container)
+
+    expect(overlay!.getAttribute('data-overlay')).toBe('boot')
+  })
+
   it('eventually types out the visitor’s name and title on its own', () => {
     const { container } = render(<BootSequence />)
 

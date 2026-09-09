@@ -135,6 +135,14 @@ export function BootSequence() {
     <div
       aria-hidden="true"
       inert
+      /* Read by src/components/Cursor.tsx, which suspends the crosshair
+         reticle and hands the OS arrow back while any overlay carrying this
+         attribute is in the document. It cannot key off `role="dialog"` the
+         way it does for the mobile menu, because this is not a dialog; and it
+         has to suspend rather than paint over the overlay, because the ring
+         and dot are `--color-text`, which in the light palette is this
+         overlay's own `bg-neutral-900`. */
+      data-overlay="boot"
       className={`fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-neutral-900 px-4 font-mono text-neutral-50 transition-opacity duration-300 ${
         stage === 'closing' ? 'opacity-0' : 'opacity-100'
       }`}

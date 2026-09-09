@@ -236,6 +236,9 @@ and a deployed URL. They are the last three items of
 in order: the skip link, `<Header>`, a single `<main id="main">`, and
 `<Footer>`. The page is a `flex min-h-svh flex-col` column on `bg-bg
 text-text`, and `<main>` is an `mx-auto w-full max-w-5xl` container.
+`<Cursor>` is mounted alongside them and deliberately outside `<main>`: it is
+chrome for the whole document rather than part of any section, and it adds
+nothing to the layout.
 
 All three columns — the header bar, `<main>` and the footer — are
 `max-w-5xl px-4 md:px-8`, so their left and right edges land on the same
@@ -245,14 +248,17 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 
 | Piece                             | Responsibility                                                                       |
 | --------------------------------- | ------------------------------------------------------------------------------------ |
+| `src/components/Cursor.tsx`       | The custom pointer: two `fixed`, `pointer-events-none`, `aria-hidden` elements — a `size-5` ring and a `size-1` dot — painted in place of the OS arrow, mounted once outside `<main>` because it is chrome for the whole document. See [the `custom-cursor` root class](#the-accents-treatments-glow-text-glow-ring-tilt-card-sweep-hero-weight-reticle-lag) |
+| `src/components/SectionHeading.tsx` | The `<h2>` every filled-in section renders instead of writing its own: the numbered mono prefix, the decrypt-in animation and the `sr-only` copy of the real label, all in one place |
 | `src/components/Header.tsx`       | Sticky bar: wordmark, inline section nav from `md` up, menu button + full-screen panel below it |
-| `src/components/HeroSection.tsx`  | The About section's content: name (the page's one `<h1>`), title, location, professional summary and the three CTAs |
-| `src/components/SkillsSection.tsx` | The Skills section's content: the core competencies and technical skill groups from `src/data/resume.ts`, each group a labelled cluster of chips in a responsive grid |
-| `src/components/ExperienceSection.tsx` | The Experience section's content: the section heading, and one entry per role by mapping `experiences` from `src/data/resume.ts` in the array's own order |
+| `src/components/HeroSection.tsx`  | The About section's content: name (the page's one `<h1>`, oversized display type whose weight follows the pointer), title, location, professional summary and the three CTAs |
+| `src/components/SkillsSection.tsx` | The Skills section's content: its `SectionHeading`, and the core competencies and technical skill groups from `src/data/resume.ts`, each group a labelled cluster of chips in a responsive grid |
+| `src/components/ExperienceSection.tsx` | The Experience section's content: its `SectionHeading`, and one entry per role by mapping `experiences` from `src/data/resume.ts` in the array's own order |
 | `src/components/ExperienceEntry.tsx` | One role's card: title, company, dates and location, its timeline marker and connecting line, and its bullet highlights plus the show-more toggle |
-| `src/components/ProjectsSection.tsx` | The Projects section's content: the section heading, and one card per entry of `projects` from `src/data/resume.ts` in the array's own order |
+| `src/components/ProjectsSection.tsx` | The Projects section's content: its `SectionHeading`, and one card per entry of `projects` from `src/data/resume.ts` in the array's own order |
 | `src/components/ProjectCard.tsx`  | One project's card: name and description, with the whole card being the link out to the project's GitHub repo |
-| `src/components/AchievementsSection.tsx` | The Achievements section's content: the section heading, and one callout/stat card per entry of `achievements` from `src/data/resume.ts` in the array's own order |
+| `src/components/AchievementsSection.tsx` | The Achievements section's content: its `SectionHeading`, and one callout/stat card per entry of `achievements` from `src/data/resume.ts` in the array's own order |
+| `src/components/ContactSection.tsx` | The Contact section's content: its `SectionHeading`, and every field of `contact` from `src/data/resume.ts` as a description list |
 | `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
 | `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
 | `src/data/sections.ts`            | The section registry: the single source of both the nav entries and the section ids   |
@@ -266,23 +272,36 @@ of links, so a nav link can never point at an id the page does not render.
 `src/App.test.tsx` asserts exactly that: every same-page href resolves to an
 element that exists in the document.
 
-**About, Skills, Experience, Projects and Achievements are filled in — by
-`HeroSection`, `SkillsSection`, `ExperienceSection`, `ProjectsSection` and
-`AchievementsSection`; the one registry entry that remains, Contact, is still
-a placeholder** ("Coming soon."). `App.tsx` maps the registry as before and
-picks each section's body in one place: a `sectionBody(section)` helper
-switches on `section.id`, returning `<HeroSection>` for `about`,
-`<SkillsSection>` for `skills`, `<ExperienceSection>` for `experience`,
-`<ProjectsSection>` for `projects`, `<AchievementsSection>` for
-`achievements` and the placeholder heading + "Coming soon." for everything
-else. The `<section id aria-labelledby>` wrapper (and with it
-the nav anchor and the scroll offset) is the registry's in every case, and a
-filled-in section renders the heading that wrapper is labelled by, from the
-registry's own `label`, so the nav text and the on-page heading cannot drift.
-Each remaining section is filled in by its own change, adding a `case` to that
+**Every registry entry is filled in** — by `HeroSection`, `SkillsSection`,
+`ExperienceSection`, `ProjectsSection`, `AchievementsSection` and
+`ContactSection`. `App.tsx` maps the registry as before and picks each
+section's body in one place: a `sectionBody(section, index)` helper switches on
+`section.id`, returning the matching component and keeping a `default:` branch
+— a placeholder heading + "Coming soon." — for a future id no `case` handles
+yet. The `<section id aria-labelledby>` wrapper (and with it the nav anchor and
+the scroll offset) is the registry's in every case, and a filled-in section
+renders the heading that wrapper is labelled by, from the registry's own
+`label`, so the nav text and the on-page heading cannot drift. A new section is
+added by its own change, adding an entry to `sections.ts` and a `case` to that
 same switch; what the shell owns either way is the structure — exactly one
 `banner`, one `main` and one `contentinfo` landmark, and exactly one `<h1>`,
 which is the hero's name.
+
+**The five `<h2>`s are `SectionHeading`'s, and their numbers are the registry's
+index.** No section writes its own heading element any more: each renders
+`<SectionHeading id index>` with the registry's `label` as its child, and the
+component paints the mono accent prefix (`02 /`), runs the decrypt-in
+animation and keeps an `sr-only` copy of the real label. The `index` is the
+section's 1-based place in `sections` and is passed down from `sectionBody`,
+because only that map knows the nav order — so the numbering can never drift
+from the nav. About is position 1 and is the hero's `<h1>`, which carries no
+prefix, so the numbered headings run `02 / Skills` through `06 / Contact`.
+(Issue #95 asks in one place for `01 / About` through `06 / Contact` and in
+another for `01 / SKILLS`, `02 / EXPERIENCE` — two numberings that cannot both
+hold, and neither of which keeps the prefix equal to the nav position. The
+nav-order invariant is the point of the feature, so that is what ships;
+changing it is a deliberate decision for a human to make here, in
+`src/App.test.tsx` and in the manual checklist together.)
 
 The skills grid is one column below `md`, two from `md` and three from `lg`,
 with each group's chips wrapping (`flex-wrap`) rather than being clipped —
@@ -357,7 +376,7 @@ before reaching the page; `scroll-margin-top` on `section[id]` (see
 
 ### Shared hooks
 
-Two hooks sit beside the components rather than inside one of them, because
+Four hooks sit beside the components rather than inside one of them, because
 each is a browser behaviour several components borrow rather than markup any
 one of them owns:
 
@@ -365,6 +384,8 @@ one of them owns:
 | ---------------------- | -------------------------------------------------------------------------------------- |
 | `src/useScrollLock.ts` | Freezes the page behind the mobile menu. `overflow: hidden` alone is not enough — iOS Safari still rubber-bands, so the body is pinned with `position: fixed` — and the cleanup restores the previous values *and* the scroll position, on close and on unmount-while-open alike, so unlocking does not jump the page to the top |
 | `src/useTilt.ts`       | Tilts a card toward the pointer. It writes only four custom properties on the element — `--tilt-x` / `--tilt-y` for the rotation, `--spec-x` / `--spec-y` for the centre of the specular — leaving the perspective, the gradient and the settle-back transition to the `tilt-card` utility in `index.css`. Used by `ProjectCard.tsx`, `AchievementsSection.tsx` and `SkillsSection.tsx` |
+| `src/useHeroWeight.ts` | Swings the hero name's weight with the pointer. Like `useTilt` it writes one custom property on the element and nothing else — `--hero-wght`, the pointer's position across the hero box mapped onto 300…800 and reset to 600 on `pointerleave` — leaving the variation axis and the lag to the `hero-weight` utility in `index.css`. It is written on the hero *container* and inherited by the `<h1>` that carries the utility, so one ref drives the whole hero. Used by `HeroSection.tsx` |
+| `src/useDecrypt.ts`    | Resolves a string out of noise: `useDecrypt(text, active)` returns the string to paint, scrambling every character right of a cursor that sweeps left to right over 20 frames at 40ms and settling on `text` for good. It touches no DOM at all — the caller renders the return value, which is what lets the real string stay in the document for assistive tech while only the painted glyphs scramble. *When* it runs is the caller's business: `SectionHeading.tsx` passes an `IntersectionObserver` latch at `threshold: 0.5` as `active` |
 
 **`useTilt` no-ops twice over, and both no-ops are the point.** Before
 attaching anything it reads `(hover: none)` and
@@ -379,6 +400,15 @@ by every query, and a hook that subscribed would show up in their listener
 counts. `index.css`'s reduced-motion block also flattens `.tilt-card` in CSS —
 belt to the hook's braces, covering a preference changed after the hook has
 already attached.
+
+**`useHeroWeight` and `useDecrypt` are built to the same pattern**, for the
+same reasons. `useHeroWeight` reads the same two queries up front and, if
+either matches, attaches nothing and writes nothing — the name stays on the
+rest weight the utility's `var()` default declares. `useDecrypt` reads only
+`(prefers-reduced-motion: reduce)` (there is no touch case: nothing is
+scrambling in response to a pointer) and returns `text` immediately with
+nothing scheduled. Neither registers a `change` listener, for the same reason
+`useTilt` does not.
 
 ## Styling: Tailwind CSS v4, CSS-first
 
@@ -434,17 +464,44 @@ mode in one place, so a component built on them needs no `dark:` variants at
 all. Reach for `brand-*` / `neutral-*` directly only when adding a new
 semantic token.
 
-### The accent's treatments: `glow-text`, `glow-ring`, `tilt-card`, `sweep`
+### The accent's treatments: `glow-text`, `glow-ring`, `tilt-card`, `sweep`, `hero-weight`, `reticle-lag`
 
-Four named `@utility` rules in `src/index.css` carry everything the neon accent
-does beyond being a colour:
+Six named `@utility` rules in `src/index.css` carry everything the neon accent
+does beyond being a colour (the last of them is the crosshair's, which is
+paint rather than accent, and lives here because it is the same kind of number):
 
 | Utility     | What it draws                                                                                     | Carried by                                                                                                              |
 | ----------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `glow-text` | Two stacked `text-shadow`s in `--color-glow` — a halo close in, a wider bloom behind it            | The hero's `<h1>`, every section `<h2>`, the achievement metric callouts, and the header nav links on hover/focus         |
+| `glow-text` | Two stacked `text-shadow`s in `--color-glow` — a halo close in, a wider bloom behind it            | The hero's `<h1>`, the `<h2>` in `SectionHeading.tsx` (which is every section heading on the page) and the fallback one in `App.tsx`'s `default:` branch, the achievement metric callouts, and the header nav links on hover/focus |
 | `glow-ring` | A `box-shadow`: a hairline in `--color-accent` plus a bloom in `--color-glow`                       | `hover:` and `focus-visible:` on the project cards, the hero CTAs and the two show-more buttons                           |
 | `tilt-card` | The `perspective(800px)` rotation driven by `--tilt-x` / `--tilt-y`, and an `::after` radial specular centred on `--spec-x` / `--spec-y` | The project cards, the achievement cards and the skill group cards — each paired with `useTilt` (see [Shared hooks](#shared-hooks)) |
 | `sweep`     | A `::before` gradient bar that translates from off-canvas left to off-canvas right over 600ms, on a hovering pointer or on keyboard focus | The hero CTAs and the header nav links, each with `overflow-hidden` so the bar is clipped to the control                  |
+| `reticle-lag` | The crosshair ring's `transform` transition — 120ms, which is the whole of what separates the ring from the dot: both are written the same position in the same tick and only the ring eases into it | The ring in `Cursor.tsx`, and nothing else. A utility rather than an inline `style` so the number is greppable with the rest of them, and so the reduced-motion block's `transition-duration` collapse can reach it |
+| `hero-weight` | The variable-font half of the reactive hero name: a `wght` variation axis read from `var(--hero-wght, 600)`, with an 80ms transition so the weight chases the pointer instead of snapping frame to frame | The hero's `<h1>` — paired with `useHeroWeight`, which writes the property on the container and nothing else (see [Shared hooks](#shared-hooks)) |
+
+**One thing in the rice is a plain class rather than a utility:
+`custom-cursor`.** `src/components/Cursor.tsx` toggles it on `<html>` while the
+reticle is painted, and `index.css` declares what it means — `cursor: none` on
+the root *and* on `a`, `button` and `[role="button"]`. Those three element
+selectors are not redundant with the root one: Chrome's UA stylesheet declares
+`cursor: pointer` on `a:-webkit-any-link`, and a declaration on the element
+beats a value inherited from an ancestor, so hiding the arrow only at the root
+would leave it showing over every link. `button` and `[role="button"]` have no
+such UA rule and would inherit `none` on their own; they are listed alongside
+the anchor so a UA that does declare one cannot reintroduce the arrow on
+exactly the controls the reticle is most visible over. (Nothing in `src/`
+applies a pointer-cursor utility of its own — and this document deliberately
+does not write that utility's class name out, for the same reason it writes no
+bracketed class name: Tailwind scans prose too, and a mention here is emitted
+into the shipped CSS as a real rule no element carries.) The rule is
+**deliberately unlayered**, for the same reason the reduced-motion block is:
+`@utility` output and Tailwind's own utilities land in the `utilities` layer,
+and a layered rule loses to a later layer however specific it is. It is a class
+and not a utility because nothing in a component's class list ever writes it —
+the component owns every condition under which the arrow comes back (a touch
+screen, a coarse pointer, reduced motion, a blurred window, and any full-bleed
+overlay in front of the page — the mobile menu or the boot animation), and
+`index.css` only says what the class means.
 
 **They are utilities in `index.css`, not bracketed arbitrary values in a
 component's class list, on purpose.** Every one of them needs a number a
@@ -553,6 +610,10 @@ engine stays a person's check in
 | `test/index-html.test.ts` | The document-level half a client-rendered page cannot assert from the React tree: the `lang` attribute on `<html>`, and that nothing focusable sits outside `#root` — which is what lets "first focusable element of the render" mean "first focusable element of the page" |
 | `test/rice-contract.test.ts` | The source pins for the accent's treatments, read as text out of `src/index.css` and the components: each of `glow-text`, `glow-ring`, `tilt-card` and `sweep` declared with the pieces that make it work, the two glows scoped to `.dark` so light mode is the printable variant, one `prefers-reduced-motion` block that names the tilt and the sweep and neutralises both while leaving the static glow alone, the sweep's hover clause inside `(hover: hover)` with its duration on the crossing rather than the return, and the components that are meant to carry each class still carrying it. Plus the one piece of arithmetic the palette suite cannot do: the sweep bar is a translucent overlay between a control's background and its label, so this file composites its centre stop over each palette's accent fill and page background — the primary CTA's own hover dimming included — and holds every label it can sit under to 4.5:1 |
 | `src/useTilt.test.ts` | The behaviour of `src/useTilt.ts` against a stubbed `matchMedia`: all four custom properties written on `pointermove`, the rotation signed toward the pointer and clamped to `max`, the properties reset on `pointerleave`, both listeners removed on unmount, and **nothing attached or written at all** under `(hover: none)` or `(prefers-reduced-motion: reduce)` — the touch and reduced-motion contracts, which the CSS half cannot express |
+| `src/useHeroWeight.test.ts` | The same contract for `src/useHeroWeight.ts`: the pointer's x across the box mapped onto the 300…800 axis, coordinates outside the box clamped to its ends, `--hero-wght` the only property ever written, the rest weight restored on `pointerleave`, a zero-width rect skipped rather than divided by, both listeners removed on unmount, and nothing attached under `(hover: none)` or reduced motion |
+| `src/useDecrypt.test.ts` | The animation as a pure string, on fake timers: `text` returned verbatim and nothing scheduled while inactive, every frame the same length as the input, the resolve running left to right, the final value equal to the input, no restart once it has settled, the interval cleared on unmount mid-run, and `text` returned immediately under reduced motion |
+| `src/components/SectionHeading.test.tsx` | What the heading is, as opposed to what it looks like: the `id` its section wrapper is labelled by staying on the `<h2>` itself, the zero-padded number painted from `index` and hidden from assistive tech, an accessible name equal to the label alone at **every frame** of the scramble, the real label kept in an `sr-only` span, `glow-text` still carried, the observer installed at half visibility and unobserved after the first hit, and no observer at all under reduced motion or where `IntersectionObserver` is undefined |
+| `src/components/Cursor.test.tsx` | The reticle against a stubbed `matchMedia`: **nothing rendered at all** under `(hover: none)`, `(pointer: coarse)` or reduced motion; two `fixed`, `aria-hidden` elements when it does render; the `custom-cursor` class added to `<html>` while mounted and removed on unmount; both elements centred on the pointer with the lag utility on the ring only; both parked off-screen when the pointer leaves the document (a `pointerout` with no `relatedTarget`) and repainted on the next move; the ring expanded and re-coloured over a link and left at rest elsewhere; the component suspended (and the OS arrow handed back) while the window is blurred, while the mobile menu is open, and while any `data-overlay` element is in the document — including the real boot overlay, rendered through `App` in a fresh session and run to completion on fake timers; and every listener removed on unmount |
 
 `src/styles.ts` is why the per-control assertions are possible at all: the focus
 ring (`FOCUS_RING`) and the 44px target (`TAP_TARGET`, `TAP_TARGET_HEIGHT`) are
@@ -658,7 +719,7 @@ document.documentElement.classList.add('dark') // or .remove('dark')
 ```
 
 At every width, in the light theme and then again in the dark one, walk Hero
-(About), Skills, Experience, Projects, Achievements and the Contact placeholder
+(About), Skills, Experience, Projects, Achievements and Contact
 and check three things in each: no horizontal scroll, no text clipped,
 truncated or overlapping, and no tap target cramped against its neighbour.
 
@@ -950,14 +1011,106 @@ truncated or overlapping, and no tap target cramped against its neighbour.
       the filled primary CTA the light band is the accent at alpha over the
       accent fill, so it composites to that fill and is deliberately invisible:
       that is what keeps the white label at 4.75:1 while it is hovered.
+- [ ] **The crosshair replaces the OS arrow, on a desktop with a mouse.**
+      `src/components/Cursor.test.tsx` proves the elements are rendered and the
+      `custom-cursor` class is on `<html>`, but jsdom applies no stylesheet and
+      paints nothing, so whether an arrow is actually gone is a browser's
+      answer. Move a real mouse over the page at 1440px and confirm the arrow
+      is replaced by a small ring with a dot at its centre, that the dot tracks
+      the pointer exactly while the ring **lags it slightly** and catches up
+      when the pointer stops, and that neither one is ever left behind at the
+      edge of the window: move the pointer up out of the page into the tab bar
+      or the URL bar, or off the side onto a second monitor, and **both
+      elements disappear** rather than staying parked at the edge they left
+      through — the window still has focus in all three cases, so this is
+      `pointerout` with no `relatedTarget`, not the blur case below. They come
+      straight back at the pointer's real position on the next move. Then
+      hover a header nav link, a hero CTA, a project
+      card and the menu button: over each of them the **ring expands and
+      changes to the accent colour**, and it returns to its resting size and
+      colour when the pointer moves off. Check the arrow is gone over those
+      controls too, not only over the page background — they carry their own
+      pointer cursor, which is what the extra selectors in the
+      `custom-cursor` rule exist for. Walk it in both palettes: the ring is
+      drawn in the text colour at rest and the accent on hover, and both change
+      with the theme.
+- [ ] **The native arrow comes back where it should.** Three cases, all of them
+      states the reticle deliberately suspends itself in:
+      - Load the page in a **fresh session** in the **light palette** (a new
+        tab with no `resume-boot-seen` in `sessionStorage` and no `?noboot`),
+        so the boot overlay plays. The OS arrow is visible for the whole ~2.3s
+        the overlay is up, and the click that dismisses it early is one you can
+        aim. This is the case a coloured reticle would not fix: the overlay is
+        `bg-neutral-900` and the ring and dot are `--color-text`, which in the
+        light palette is the same `#111827`. The crosshair takes over the
+        moment the overlay finishes fading.
+      - At 375px, open the mobile menu. The OS arrow returns for as long as the
+        panel is open, and the panel's focus trap, its links and its close
+        button all behave exactly as they did before the reticle existed. Close
+        it and the crosshair comes back.
+      - Click another window (or another browser tab) so this one loses focus.
+        The arrow returns rather than the ring sitting frozen wherever it last
+        was, and moving the pointer over the inactive window does not move it.
+        Click back in and the crosshair resumes at the pointer's real position.
+- [ ] **Touch devices get the native cursor and no reticle at all.** On a real
+      phone or tablet (not devtools' responsive mode — it still reports a
+      hovering pointer), load the page and confirm nothing chases a finger and
+      nothing is painted in the corner. Then check the DOM rather than the
+      paint: in remote devtools, search the elements panel for the reticle's
+      two elements and confirm **neither is in the document**, and that
+      `<html>` does not carry the `custom-cursor` class. This is
+      `src/components/Cursor.tsx`'s `(hover: none)` / `(pointer: coarse)` early
+      return, and a device is the only place it can be seen.
+- [ ] **Each section heading scrambles in the first time it scrolls into
+      view.** Reload at the top of the page and scroll down slowly. As each of
+      the five section headings passes half-visible it resolves out of noise —
+      the glyphs settle **left to right** over about a second and end on the
+      real label, not on a wrong or truncated one. Scroll back up and down
+      again: a heading that has already resolved **stays resolved** rather than
+      re-running. Nothing else on the page may reflow while it runs; the
+      scrambled string is the same length as the label, so the heading must not
+      change width or push its section around.
+- [ ] **A screen reader reads the real heading throughout the scramble.** Turn
+      VoiceOver (or NVDA) on and navigate the page by heading while the
+      animation is running — reload and jump straight to a heading mid-resolve
+      if you can. Every heading announces its **real label and nothing else**:
+      no glyph noise, no number read out in front of it, and no doubled
+      reading of the label. The rotor's heading list is About, Skills,
+      Experience, Projects, Achievements, Contact.
+- [ ] **The numbered prefixes read `02 / Skills` through `06 / Contact`, in nav
+      order.** Walk the page top to bottom and read the number in front of each
+      section title against the header nav: Skills is 02, Experience 03,
+      Projects 04, Achievements 05, Contact 06. **About is position 1 and has
+      no prefix** — it is the hero's name, the page's one `<h1>`. A number that
+      disagrees with the nav order means the index is no longer coming from the
+      registry. The prefixes are mono and in the accent colour in both
+      palettes.
+- [ ] **The hero name's weight follows the pointer, and returns to rest.** At
+      1440px, sweep a real mouse from the left edge of the hero to the right
+      edge and back: the name gets **visibly lighter toward the left and
+      heavier toward the right**, continuously rather than in steps, and the
+      change lags the pointer just enough to read as attached to it. Move the
+      pointer out of the hero entirely and confirm the name **settles back to
+      its rest weight** rather than staying stuck at whichever end it was last
+      at. Repeat at 768px. Two failures to look for: the name reflowing onto a
+      different number of lines as it gets heavier (it must not), and the
+      weight snapping between a light and a bold face instead of sweeping —
+      that means the variable axis is not being used.
 - [ ] **Reduced motion leaves the page fully usable.** Turn the OS preference
       on (macOS *Reduce motion*, Windows *Show animations off*, or devtools >
       Rendering > *Emulate CSS prefers-reduced-motion*), reload, and walk the
       page: **no card tilts** under the pointer and no specular follows it, no
       sweep bar crosses a CTA or a nav link, and same-page nav links jump to
-      their section instead of smooth-scrolling. Everything must still *work*
-      — every hover and focus state still visibly changes, the mobile menu
-      still opens and closes, the show-more toggles still expand — and the
-      **glow stays on**, because a `text-shadow` is static paint rather than
-      movement. A control that became indistinguishable from its resting state
-      is the failure to look for.
+      their section instead of smooth-scrolling. **None of the three pointer
+      treatments runs either**, and each is switched off in a different place,
+      so check all three: the **OS arrow stays the OS arrow** (no reticle in
+      the document and no `custom-cursor` class on `<html>`), **no heading
+      scrambles** — every section title is its real label, with its number, on
+      the first paint and every paint after it — and the **hero name holds one
+      static weight** however the pointer moves across it. Everything must
+      still *work* — every hover and focus state still visibly changes, the
+      mobile menu still opens and closes, the show-more toggles still expand,
+      and the numbered prefixes are still there — and the **glow stays on**,
+      because a `text-shadow` is static paint rather than movement. A control
+      that became indistinguishable from its resting state is the failure to
+      look for.
