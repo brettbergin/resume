@@ -21,6 +21,7 @@ const PINNED_ORDER = [
   'hex',
   'url',
   'html',
+  'json',
   'jwt',
   'hash',
   'cert',
