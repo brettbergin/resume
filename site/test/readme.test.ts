@@ -736,3 +736,28 @@ describe('root README live URL', () => {
     expect(new URL(documentedLiveUrl()).pathname).toBe(base)
   })
 })
+
+describe('site README internal anchor links', () => {
+  it('every internal link target resolves to a heading', () => {
+    // A heading rename is invisible to every other assertion here: the prose
+    // still reads correctly and the link still renders, it just lands
+    // nowhere. So the fragments are checked against the headings they name.
+    const targets = new Set(
+      [...siteReadme.matchAll(/\]\(#([^)]+)\)/g)].map((match) => match[1]),
+    )
+    const headingSlugs = [...siteReadme.matchAll(/^#{1,6} (.+)$/gm)].map((match) =>
+      match[1]
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/_/g, '')
+        // No trimming of leading or trailing hyphens: GitHub keeps them, so
+        // `### \`--color-border\` vs …` really does anchor at `#--color-border-vs-…`.
+        .replace(/\s+/g, '-'),
+    )
+
+    expect(targets.size).toBeGreaterThan(0)
+    for (const target of targets) {
+      expect(headingSlugs, target).toContain(target)
+    }
+  })
+})
