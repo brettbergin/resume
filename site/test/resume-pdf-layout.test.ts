@@ -94,4 +94,22 @@ describe('committed resume.pdf', () => {
     )
     expect(scaledUp).toEqual([])
   })
+
+  it('carries every project link that resume.md lists', () => {
+    // The PDF is rendered by hand from resume.md, so an edit to the source
+    // that is not followed by a re-render ships the old content with every
+    // other gate still green. The visible text cannot be read back out — the
+    // fonts are subset, so the streams hold glyph indices, not letters — but a
+    // link's target is stored as a literal ASCII string in its annotation
+    // dictionary, and each project's repo name is part of its URL. So the set
+    // of URLs is a complete stand-in for the set of projects.
+    const md = readFileSync(resolve(here, '..', '..', 'resume.md'), 'utf8')
+    // resume.md's only inline links are the project table's `[name](url)`.
+    const projects = [...md.matchAll(/\[([^\]]+)\]\((https[^)]+)\)/g)]
+
+    expect(projects.length).toBeGreaterThan(0)
+    for (const [, name, url] of projects) {
+      expect(content, `${name} is missing from resume.pdf`).toContain(url)
+    }
+  })
 })
