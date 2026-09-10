@@ -24,6 +24,7 @@ const PINNED_ORDER = [
   'jwt',
   'hash',
   'cert',
+  'gpg',
   'cidr',
   'epoch',
   'secret',
