@@ -219,6 +219,80 @@ describe('ToolPane', () => {
     expect(output()?.textContent).toBe('ran:abc:{"mode":"encode"}')
   })
 
+  it('runs a generator with an empty input, on mount and on every option change', async () => {
+    // The generator's own reason for existing: it makes a value out of
+    // nothing, so the empty box every other tool treats as "nothing to do" is
+    // its normal state. Without the flag the pane never called run at all.
+    const tool = makeStub({ generates: true, options: [SELECT_OPTION] })
+    const run = vi.mocked(tool.run)
+    await mount(tool)
+
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(run.mock.calls[0][0]).toBe('')
+    expect(run.mock.calls[0][1]).toEqual({ mode: 'decode' })
+    expect(output()?.textContent).toBe('ran::{"mode":"decode"}')
+
+    fireEvent.change(screen.getByLabelText('Mode'), {
+      target: { value: 'encode' },
+    })
+    await flush()
+
+    expect(run).toHaveBeenCalledTimes(2)
+    expect(output()?.textContent).toBe('ran::{"mode":"encode"}')
+  })
+
+  it('gives a generator a Generate button and no input box', async () => {
+    const tool = makeStub({ generates: true })
+    const run = vi.mocked(tool.run)
+    await mount(tool)
+
+    // Nothing typed into a generator changes what it draws, so there is no
+    // box to type into.
+    expect(screen.queryByLabelText('Input')).toBeNull()
+
+    const generate = screen.getByRole('button', { name: 'Generate' })
+    expect(generate.className).toContain(FOCUS_RING)
+    expect(generate.className).toContain(TAP_TARGET_HEIGHT)
+
+    expect(run).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(generate)
+    await flush()
+
+    // A second value with no option touched, which is the only way to ask for
+    // one once the settings are the settings you want.
+    expect(run).toHaveBeenCalledTimes(2)
+
+    // And its value is what the copy button copies.
+    fireEvent.click(screen.getByRole('button', { name: 'Copy output' }))
+    expect(clipboardWrites).toHaveBeenCalledWith('ran::{}')
+  })
+
+  it('offers no Generate button to a tool that transforms its input', async () => {
+    await mount(makeStub(), { input: 'abc' })
+
+    expect(screen.queryByRole('button', { name: 'Generate' })).toBeNull()
+    expect(screen.getByLabelText('Input')).toBeDefined()
+  })
+
+  it('goes back to showing nothing when a generator is replaced by an ordinary tool', async () => {
+    const generator = makeStub({ id: 'generator', generates: true })
+    const plain = makeStub({ id: 'plain' })
+    const plainRun = vi.mocked(plain.run)
+
+    const { rerender } = render(<Harness tool={generator} />)
+    await flush()
+    expect(output()?.textContent).toBe('ran::{}')
+
+    rerender(<Harness tool={plain} />)
+    await flush()
+
+    // The flag is read off the tool being run, not remembered from the last
+    // one: an empty box on a transforming tool still shows nothing.
+    expect(plainRun).not.toHaveBeenCalled()
+    expect(output()?.textContent).toBe('')
+  })
+
   it('discards a stale async result', async () => {
     const settle: ((result: ToolResult) => void)[] = []
     const tool = makeStub({

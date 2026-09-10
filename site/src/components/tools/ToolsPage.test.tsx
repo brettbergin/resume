@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { buildToolHash } from '../../tools/fragment.ts'
+import { buildToolHash, parseToolHash } from '../../tools/fragment.ts'
 import { tools } from '../../tools/registry.ts'
 import { ToolsPage } from './ToolsPage.tsx'
 
@@ -226,6 +226,67 @@ describe('ToolsPage', () => {
     expect(
       remove.mock.calls.filter(([type]) => type === 'hashchange'),
     ).toHaveLength(1)
+  })
+
+  it('generates a value for the secret tool on load and on an option change', async () => {
+    // The generator is the one tool nobody types into: it is reached from the
+    // sidebar and has to produce something from an empty page, both on the
+    // first render and after every change to how it should draw.
+    setHash('#/tools/secret')
+    render(<ToolsPage />)
+
+    await waitFor(() => {
+      expect(output()?.textContent).toMatch(/^\S{16}$/)
+    })
+    expect(screen.getByRole('row', { name: /Entropy/ }).textContent).toMatch(
+      /\d+\.\d bits/,
+    )
+
+    fireEvent.change(screen.getByLabelText('Generate'), {
+      target: { value: 'uuid' },
+    })
+
+    await waitFor(() => {
+      expect(output()?.textContent).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      )
+    })
+  })
+
+  it('draws another secret on the Generate button without putting either in the URL', async () => {
+    setHash('#/tools/secret')
+    render(<ToolsPage />)
+
+    await waitFor(() => {
+      expect(output()?.textContent).not.toBe('')
+    })
+
+    // An option change is what makes the page write the fragment at all, so
+    // the URL under test below is one that really carries this tool's state.
+    fireEvent.change(screen.getByLabelText('Length'), {
+      target: { value: '24' },
+    })
+    await waitFor(() => {
+      expect(output()?.textContent).toHaveLength(24)
+    })
+    const first = output()?.textContent ?? ''
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
+
+    await waitFor(() => {
+      expect(output()?.textContent).not.toBe(first)
+    })
+    const second = output()?.textContent ?? ''
+    expect(second).toHaveLength(24)
+
+    // The configuration rides in the fragment; the values must not. The
+    // address bar is a place people screenshot and paste from.
+    const shared = parseToolHash(window.location.hash)
+    expect(shared.tool).toBe('secret')
+    expect(shared.options.length).toBe('24')
+    expect(shared.input).toBe('')
+    expect(Object.values(shared.options)).not.toContain(first)
+    expect(Object.values(shared.options)).not.toContain(second)
   })
 
   it('offers magic’s detection as a link to that tool carrying the input', async () => {
