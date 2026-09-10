@@ -248,7 +248,7 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 
 | Piece                             | Responsibility                                                                       |
 | --------------------------------- | ------------------------------------------------------------------------------------ |
-| `src/components/Cursor.tsx`       | The custom pointer: two `fixed`, `pointer-events-none`, `aria-hidden` elements — a `size-5` ring and a `size-1` dot — painted in place of the OS arrow, mounted once outside `<main>` because it is chrome for the whole document. See [the `custom-cursor` root class](#the-accents-treatments-glow-text-glow-ring-tilt-card-sweep-hero-weight-reticle-lag) |
+| `src/components/Cursor.tsx`       | The custom pointer: two `fixed`, `pointer-events-none`, `aria-hidden` elements — a `size-5` ring and a `size-1` dot — painted in place of the OS arrow, mounted once outside `<main>` because it is chrome for the whole document. See [the `custom-cursor` root class](#the-accents-treatments-glow-text-glow-ring-tilt-card-sweep-hero-weight-reticle-lag-blink) |
 | `src/components/SectionHeading.tsx` | The `<h2>` every filled-in section renders instead of writing its own: the numbered mono prefix, the decrypt-in animation and the `sr-only` copy of the real label, all in one place |
 | `src/components/Header.tsx`       | Sticky bar: wordmark, inline section nav from `md` up, menu button + full-screen panel below it |
 | `src/components/HeroSection.tsx`  | The About section's content: name (the page's one `<h1>`, oversized display type whose weight follows the pointer), title, location, professional summary and the three CTAs |
