@@ -5,6 +5,12 @@
  * transform, the gradient and the settle-back transition all stay in CSS
  * where the rest of the theme lives.
  *
+ * The move handler never measures. `getBoundingClientRect` forces a style and
+ * layout flush, and calling it per pointer sample flushes the writes the
+ * previous sample just made, so the box is read once on `pointerenter` and
+ * cached; window `resize` and `scroll` refresh it, since both move the card
+ * within the viewport the cached rect is relative to.
+ *
  * It is pointer-only and motion-aware: a touch screen reports `(hover: none)`
  * and a tilt there would fight the scroll, and a reader who asked for reduced
  * motion should not get a card that moves under the cursor at all. In either
@@ -57,11 +63,22 @@ export function useTilt(
       return
     }
 
+    let rect: DOMRect | null = null
+
+    const handlePointerEnter = () => {
+      rect = element.getBoundingClientRect()
+    }
+
+    const updateRect = () => {
+      rect = element.getBoundingClientRect()
+    }
+
     const handlePointerMove = (event: PointerEvent) => {
-      const rect = element.getBoundingClientRect()
-      // A zero-sized rect (an element still laid out, or jsdom) would make the
-      // normalisation divide by zero.
-      if (rect.width === 0 || rect.height === 0) return
+      // No rect means no `pointerenter` has landed yet — unreachable from a
+      // real pointer, but a synthesised move must not throw. A zero-sized rect
+      // (an element not laid out yet, or jsdom) would divide by zero in the
+      // normalisation below.
+      if (!rect || rect.width === 0 || rect.height === 0) return
 
       // Normalised 0…1 across the box; a pointer captured outside it can read
       // past either end, so clamp before scaling.
@@ -82,11 +99,17 @@ export function useTilt(
       }
     }
 
+    element.addEventListener('pointerenter', handlePointerEnter)
     element.addEventListener('pointermove', handlePointerMove)
     element.addEventListener('pointerleave', handlePointerLeave)
+    window.addEventListener('resize', updateRect)
+    window.addEventListener('scroll', updateRect, { passive: true })
     return () => {
+      element.removeEventListener('pointerenter', handlePointerEnter)
       element.removeEventListener('pointermove', handlePointerMove)
       element.removeEventListener('pointerleave', handlePointerLeave)
+      window.removeEventListener('resize', updateRect)
+      window.removeEventListener('scroll', updateRect)
     }
   }, [ref, max])
 }

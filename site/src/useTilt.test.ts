@@ -11,6 +11,9 @@ import { useTilt } from './useTilt.ts'
  * jsdom lays nothing out — `getBoundingClientRect` is all zeros — so the test
  * element carries a stubbed rect, and the hook's own zero-size guard would
  * otherwise swallow every write.
+ *
+ * The hook caches that rect on `pointerenter`, so every case that expects a
+ * write enters the element first, the way a real pointer would.
  */
 
 const RECT = { left: 100, top: 50, width: 200, height: 100 }
@@ -38,16 +41,18 @@ function mockMedia(matching: string[] = []) {
   return { listenerCount: () => listenerCount }
 }
 
-/** A detached element with a real rect and a countable listener list. */
+/** A detached element with a real rect and a countable listener list. The rect
+ * is swappable, so a test can move the element the way a scroll would. */
 function mockElement() {
   const element = document.createElement('div')
+  let rect = RECT
   element.getBoundingClientRect = () =>
     ({
-      ...RECT,
-      right: RECT.left + RECT.width,
-      bottom: RECT.top + RECT.height,
-      x: RECT.left,
-      y: RECT.top,
+      ...rect,
+      right: rect.left + rect.width,
+      bottom: rect.top + rect.height,
+      x: rect.left,
+      y: rect.top,
       toJSON: () => ({}),
     }) as DOMRect
 
@@ -63,7 +68,13 @@ function mockElement() {
     return (remove as (...args: unknown[]) => void)(type, ...rest)
   }
 
-  return { element, listenerCount: (type: string) => listeners.get(type) ?? 0 }
+  return {
+    element,
+    setRect: (next: typeof RECT) => {
+      rect = next
+    },
+    listenerCount: (type: string) => listeners.get(type) ?? 0,
+  }
 }
 
 /** jsdom has no PointerEvent, and clientX/clientY are read-only on the base
@@ -72,6 +83,11 @@ function pointerMove(element: HTMLElement, clientX: number, clientY: number) {
   element.dispatchEvent(
     new MouseEvent('pointermove', { clientX, clientY, bubbles: true }),
   )
+}
+
+/** What tells the hook to measure the element. */
+function pointerEnter(element: HTMLElement) {
+  element.dispatchEvent(new MouseEvent('pointerenter', { bubbles: true }))
 }
 
 function readProperties(element: HTMLElement) {
@@ -110,6 +126,7 @@ describe('useTilt', () => {
     renderHook(() => useTilt({ current: element }))
 
     // Three quarters across, one quarter down.
+    pointerEnter(element)
     pointerMove(element, RECT.left + 150, RECT.top + 25)
 
     expect(readProperties(element)).toEqual({
@@ -125,6 +142,7 @@ describe('useTilt', () => {
     const { element } = mockElement()
 
     renderHook(() => useTilt({ current: element }, { max: 12 }))
+    pointerEnter(element)
 
     // Bottom-left corner: rotation is negative on both axes and saturated.
     pointerMove(element, RECT.left, RECT.top + RECT.height)
@@ -155,6 +173,7 @@ describe('useTilt', () => {
 
     renderHook(() => useTilt({ current: element }))
 
+    pointerEnter(element)
     pointerMove(element, RECT.left + 200, RECT.top)
     expect(readProperties(element)).not.toEqual(REST)
 
@@ -171,9 +190,11 @@ describe('useTilt', () => {
 
       renderHook(() => useTilt({ current: element }))
 
+      expect(listenerCount('pointerenter')).toBe(0)
       expect(listenerCount('pointermove')).toBe(0)
       expect(listenerCount('pointerleave')).toBe(0)
 
+      pointerEnter(element)
       pointerMove(element, RECT.left + 200, RECT.top)
       element.dispatchEvent(new MouseEvent('pointerleave'))
 
@@ -184,18 +205,76 @@ describe('useTilt', () => {
     },
   )
 
-  it('removes both listeners on unmount', () => {
+  it('writes nothing on a pointermove that no pointerenter preceded', () => {
+    mockMedia()
+    const { element } = mockElement()
+
+    renderHook(() => useTilt({ current: element }))
+
+    pointerMove(element, RECT.left + 150, RECT.top + 25)
+
+    expect(readProperties(element)).toEqual(NOTHING_WRITTEN)
+  })
+
+  it('calls getBoundingClientRect once on pointerenter, never on pointermove', () => {
+    mockMedia()
+    const { element } = mockElement()
+    const measure = vi.spyOn(element, 'getBoundingClientRect')
+
+    renderHook(() => useTilt({ current: element }))
+
+    pointerEnter(element)
+    for (const offset of [10, 20, 30]) {
+      pointerMove(element, RECT.left + offset, RECT.top + offset)
+    }
+
+    // The whole point of the cache: the moves read the box the enter measured
+    // rather than forcing a layout flush each sample.
+    expect(measure).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['resize', 'scroll'])(
+    're-measures the element on window %s',
+    (type) => {
+      mockMedia()
+      const { element, setRect } = mockElement()
+
+      renderHook(() => useTilt({ current: element }))
+      pointerEnter(element)
+
+      // The card slides 300px up the viewport; the same client coordinate is
+      // now the bottom-right corner rather than the centre.
+      setRect({ ...RECT, top: RECT.top - 300 })
+      window.dispatchEvent(new Event(type))
+
+      pointerMove(element, RECT.left + RECT.width, RECT.top + RECT.height - 300)
+      expect(readProperties(element)).toEqual({
+        '--tilt-x': '8deg',
+        '--tilt-y': '-8deg',
+        '--spec-x': '100%',
+        '--spec-y': '100%',
+      })
+    },
+  )
+
+  it('removes every listener on unmount', () => {
     mockMedia()
     const { element, listenerCount } = mockElement()
+    const removeFromWindow = vi.spyOn(window, 'removeEventListener')
 
     const { unmount } = renderHook(() => useTilt({ current: element }))
+    expect(listenerCount('pointerenter')).toBe(1)
     expect(listenerCount('pointermove')).toBe(1)
     expect(listenerCount('pointerleave')).toBe(1)
 
     unmount()
 
+    expect(listenerCount('pointerenter')).toBe(0)
     expect(listenerCount('pointermove')).toBe(0)
     expect(listenerCount('pointerleave')).toBe(0)
+    for (const type of ['resize', 'scroll']) {
+      expect(removeFromWindow).toHaveBeenCalledWith(type, expect.any(Function))
+    }
 
     element.style.removeProperty('--tilt-x')
     pointerMove(element, RECT.left + 200, RECT.top)
