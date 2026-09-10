@@ -88,6 +88,16 @@ export type ToolOptions = Record<string, string>
  *
  * `live: true` asks the pane to re-run the tool once a second — the JWT
  * tool's countdown to `exp` — so a tool never owns a timer itself.
+ *
+ * `generates: true` marks a tool that *produces* a value instead of
+ * transforming one: the secret generator ignores its input entirely. The pane
+ * otherwise treats an empty input as nothing to show and skips the run, which
+ * for a generator would mean it never ran at all — an empty pane is exactly
+ * the state someone is in when they want a password. So a generator is run on
+ * mount and on every option change with whatever the input holds, is offered a
+ * Generate button to draw another value, and is shown no input box at all,
+ * since a control whose contents are ignored is a claim the tool does not
+ * honour.
  */
 export interface Tool {
   id: string
@@ -97,4 +107,5 @@ export interface Tool {
   run: (input: string, options: ToolOptions) => ToolResult | Promise<ToolResult>
   runFile?: (file: File) => Promise<ToolResult>
   live?: boolean
+  generates?: boolean
 }

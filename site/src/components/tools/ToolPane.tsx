@@ -38,6 +38,12 @@
  * - `tool.live` asks for a re-run once a second (the JWT tool's countdown to
  *   `exp`). The interval belongs to the pane rather than the tool, and is
  *   cleared on unmount and whenever the tool changes.
+ * - An empty input shows nothing rather than running: every tool answers an
+ *   empty string with an empty result, and rendering that is output nobody
+ *   asked for. `tool.generates` is the exception — a generator has no input to
+ *   be empty, so it runs anyway, is drawn without an input box, and gets a
+ *   Generate button for the times the reader wants another value without
+ *   changing an option.
  *
  * A failure is inline text in `text-accent` inside an `aria-live="polite"`
  * region: pasting half a token *is* the expected way to get one, so it is
@@ -64,9 +70,10 @@ const DEBOUNCE_MS = 150
  * countdown that needs it. */
 const LIVE_INTERVAL_MS = 1000
 
-/** Both copy buttons. One constant so the 44px floor and the focus ring are
- * declared once for the pair, the way the shell's other controls do it. */
-const COPY_BUTTON = `inline-flex ${TAP_TARGET_HEIGHT} items-center justify-center rounded-pill border border-border-strong px-4 text-base text-text hover:text-accent disabled:border-border disabled:text-muted ${FOCUS_RING}`
+/** Every button in the pane: the two copy buttons and a generator's Generate.
+ * One constant so the 44px floor and the focus ring are declared once for the
+ * set, the way the shell's other controls do it. */
+const PANE_BUTTON = `inline-flex ${TAP_TARGET_HEIGHT} items-center justify-center rounded-pill border border-border-strong px-4 text-base text-text hover:text-accent disabled:border-border disabled:text-muted ${FOCUS_RING}`
 
 /** Every text box, select and file control in the pane. */
 const CONTROL =
@@ -186,7 +193,9 @@ export function ToolPane({
     const id = ++sequence.current
     // Empty in, nothing shown: every tool returns an empty result for an
     // empty input, and rendering that is output the reader did not ask for.
-    if (value === '') {
+    // A generator is the exception — it has no input to be empty, and the
+    // whole reason it is on the page is the value it produces from nothing.
+    if (value === '' && current.generates !== true) {
       setResult(null)
       return
     }
@@ -275,22 +284,28 @@ export function ToolPane({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label htmlFor={inputId} className={CAPTION}>
-          Input
-        </label>
-        <textarea
-          id={inputId}
-          value={input}
-          rows={8}
-          spellCheck={false}
-          autoComplete="off"
-          onChange={(event) => {
-            onChange({ input: event.target.value, options: resolved })
-          }}
-          className={CONTROL}
-        />
-      </div>
+      {/* A generator ignores whatever is in the box, so it is drawn without
+          one: an Input control whose contents change nothing is a promise the
+          tool does not keep, and typing into it would silently reroll the
+          value already on show. */}
+      {tool.generates !== true && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor={inputId} className={CAPTION}>
+            Input
+          </label>
+          <textarea
+            id={inputId}
+            value={input}
+            rows={8}
+            spellCheck={false}
+            autoComplete="off"
+            onChange={(event) => {
+              onChange({ input: event.target.value, options: resolved })
+            }}
+            className={CONTROL}
+          />
+        </div>
+      )}
 
       {(tool.options ?? []).length > 0 && (
         <div className="flex flex-wrap gap-4">
@@ -370,6 +385,17 @@ export function ToolPane({
         </label>
       )}
 
+      {tool.generates === true && (
+        /* Another value, without having to change an option to get one. The
+           run is the same `start()` an option change performs, so the newest
+           result wins by sequence number exactly as it does everywhere else. */
+        <div>
+          <button type="button" onClick={start} className={PANE_BUTTON}>
+            Generate
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         <span className={CAPTION}>Output</span>
         <pre className="w-full overflow-x-auto whitespace-pre-wrap break-all rounded-card border border-border bg-surface p-3 font-mono text-base text-text">
@@ -411,7 +437,7 @@ export function ToolPane({
         <button
           type="button"
           onClick={() => copyToClipboard(result?.output ?? '')}
-          className={COPY_BUTTON}
+          className={PANE_BUTTON}
         >
           Copy output
         </button>
@@ -420,7 +446,7 @@ export function ToolPane({
           disabled={tooLongToShare}
           title={tooLongToShare ? SHARE_LIMIT_TITLE : undefined}
           onClick={() => copyToClipboard(shareUrl())}
-          className={COPY_BUTTON}
+          className={PANE_BUTTON}
         >
           Copy link
         </button>
