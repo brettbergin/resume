@@ -564,9 +564,9 @@ signature verification behind the JWT tool.
 
 ### The fixtures
 
-`test/fixtures/` holds real artefacts, produced by `openssl` and `ssh-keygen`
-and never by the tool under test — a decoder checked against its own output
-proves nothing. The exact invocations sit next to each constant in
+`test/fixtures/` holds real artefacts, produced by `openssl`, `ssh-keygen` and
+`gpg` and never by the tool under test — a decoder checked against its own
+output proves nothing. The exact invocations sit next to each constant in
 `src/tools/cert.test.ts`; in outline:
 
 ```bash
@@ -595,7 +595,24 @@ openssl req -new -newkey rsa:2048 -nodes -keyout request.key \
 # authorized_keys — one ed25519 public key line
 ssh-keygen -t ed25519 -N '' -C 'tools@example' -f id_ed25519
 cp id_ed25519.pub authorized_keys
+
+# gpg-v4.asc — a throwaway ed25519 public key, exported armored. Generated in a
+# scratch GNUPGHOME so nothing touches a real keyring; the secret half is not
+# committed. gpg-v4.fingerprint.txt records what `gpg --fingerprint` said about
+# it: the 40-hex fingerprint on the first line, the 16-hex key ID on the second.
+export GNUPGHOME=$(mktemp -d) && chmod 700 "$GNUPGHOME"
+gpg --batch --pinentry-mode loopback --passphrase '' \
+  --quick-generate-key 'Test User <test@example.com>' ed25519 sign 0
+gpg --armor --export test@example.com > gpg-v4.asc
+gpg --list-keys --with-colons | awk -F: '/^fpr:/ { print $10; print substr($10, 25) }' \
+  > gpg-v4.fingerprint.txt
 ```
+
+`gpg-v5.asc` and `gpg-v6.asc` are not keys and have no generating tool: there
+is nothing to fingerprint in them, only a version byte the tool has to refuse.
+Each is a three-byte old-format public-key packet — `0x98` (tag 6, one-byte
+length), `0x01`, then `0x05` or `0x06` — armored with its own CRC-24, which is
+enough for the parser to reach the version and stop.
 
 The expected values are read out of the same tools —
 `openssl x509 -noout -fingerprint -sha256 -serial -dates -dateopt iso_8601`,
