@@ -32,6 +32,7 @@ const TOOL_NAMES = [
   'cert',
   'cidr',
   'epoch',
+  'TOTP',
 ]
 
 /** RFC 7515 Appendix A.1's example token, the same vector src/tools/jwt.test.ts
@@ -186,6 +187,52 @@ test('skip link focuses the tools content without losing the current input', asy
   await expect(
     page.getByRole('link', { name: 'magic paste', exact: true }),
   ).toBeFocused()
+})
+
+test('keeps a TOTP secret out of the URL on every path that can write one', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const secret = 'JBSWY3DPEHPK3PXP'
+
+  // Direct entry: the live pane re-runs once a second, but the sensitive
+  // contract keeps the hash at the bare tool id no matter how long that runs.
+  await openTools(page, '#/tools/totp')
+  await input(page).fill(secret)
+  await expect(output(page)).not.toHaveText('')
+  await page.waitForTimeout(1100)
+  expect(page.url()).not.toContain(secret)
+  expect(page.url()).not.toContain('i=')
+  const shared = page.url()
+
+  // A fragment reload selects TOTP without restoring what was typed into it.
+  await page.reload()
+  expect(page.url()).toBe(shared)
+  await expect(
+    page.getByRole('link', { name: 'TOTP', exact: true }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(input(page)).toHaveValue('')
+
+  // The Copy link button builds the same sensitive-safe hash rather than the
+  // input-carrying one every other tool's share link uses.
+  await input(page).fill(secret)
+  await expect(output(page)).not.toHaveText('')
+  await page.getByRole('button', { name: 'Copy link' }).click()
+  const copiedLink = await page.evaluate(() => navigator.clipboard.readText())
+  expect(copiedLink).not.toContain(secret)
+  expect(copiedLink).not.toContain('i=')
+
+  // Magic paste: a pasted otpauth:// URI is what totp.detect scores highest,
+  // and the "detected as TOTP, switch" chip's href must not carry it either.
+  const uri = `otpauth://totp/Example:alice@example.com?secret=${secret}&issuer=Example`
+  await openTools(page)
+  await input(page).fill(uri)
+  const chip = page.getByRole('link', { name: /detected as totp, switch/i })
+  await expect(chip).toBeVisible()
+  const href = await chip.getAttribute('href')
+  expect(href).not.toContain(secret)
+  expect(href).not.toContain('i=')
 })
 
 test.describe('at 375x667', () => {
