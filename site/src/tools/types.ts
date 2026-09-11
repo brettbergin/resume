@@ -40,13 +40,20 @@ export interface ToolDetection {
  *
  * `detected` is set only by the magic paste tool, and only when it dispatched
  * to another tool: everything else in the result then belongs to *that* tool,
- * which is what makes the switch chip worth offering. */
+ * which is what makes the switch chip worth offering.
+ *
+ * `progress` draws a ring beside the output — TOTP's 30-second window — from
+ * `fraction` alone (1 = just started, 0 = about to roll over), so the pane
+ * stays generic rather than knowing what a "window" means for any given tool.
+ * Decorative only: the number it represents belongs in a `field` too, since
+ * the ring itself carries no accessible name. */
 export interface ToolResult {
   ok: boolean
   output: string
   fields?: ToolField[]
   error?: string
   detected?: ToolDetection
+  progress?: { fraction: number }
 }
 
 /** One control in the pane's options row. Values are always strings, so the
@@ -108,4 +115,12 @@ export interface Tool {
   runFile?: (file: File) => Promise<ToolResult>
   live?: boolean
   generates?: boolean
+  /** When `true`, neither the input nor the options are ever written into the
+   * URL fragment — only the tool id is preserved, so a reload of a shared or
+   * bookmarked link reopens the tool without restoring any secret. This is the
+   * whole-tool counterpart to `ToolOption.secret`, for a tool like TOTP whose
+   * *input itself* is the secret rather than one option among several.
+   * Tools without the flag keep the existing behaviour of writing input and
+   * non-secret options into the fragment. */
+  sensitive?: boolean
 }

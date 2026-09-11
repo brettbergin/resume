@@ -487,6 +487,50 @@ describe('ToolPane', () => {
     expect(link).not.toContain(btoa('topsecret').replace(/=+$/, ''))
   })
 
+  it('draws no progress ring for a tool that never sets one', async () => {
+    const { container } = await mount(makeStub(), { input: 'abc' })
+    expect(container.querySelector('svg')).toBeNull()
+  })
+
+  it('draws a decorative progress ring at the fraction the result reports', async () => {
+    const tool = makeStub({
+      run: vi.fn(
+        (input: string): ToolResult => ({
+          ok: true,
+          output: input,
+          progress: { fraction: 0.25 },
+        }),
+      ),
+    })
+    const { container } = await mount(tool, { input: 'abc' })
+
+    const ring = container.querySelector('svg')
+    expect(ring).not.toBeNull()
+    expect(ring?.getAttribute('aria-hidden')).toBe('true')
+
+    const [, indicator] = Array.from(container.querySelectorAll('svg circle'))
+    const circumference = 2 * Math.PI * ((32 - 4) / 2)
+    expect(Number(indicator.getAttribute('stroke-dashoffset'))).toBeCloseTo(
+      circumference * 0.75,
+    )
+  })
+
+  it('keeps a sensitive tool input out of the copied link', async () => {
+    const tool = makeStub({ sensitive: true, options: [SELECT_OPTION] })
+    await mount(tool, { input: 'JBSWY3DPEHPK3PXP' })
+
+    fireEvent.click(copyLinkButton())
+
+    const link = String(clipboardWrites.mock.calls[0][0])
+    // A sensitive tool's input is itself the secret, so the link carries
+    // only the tool id — no `i=` or `o=` segment to decode, and the raw
+    // secret is nowhere in the copied text either.
+    expect(link).toContain('#/tools/stub')
+    expect(link).not.toContain('i=')
+    expect(link).not.toContain('o=')
+    expect(link).not.toContain('JBSWY3DPEHPK3PXP')
+  })
+
   it('renders a failure inline in a polite live region, never as an alert', async () => {
     const tool = makeStub({
       run: vi.fn(

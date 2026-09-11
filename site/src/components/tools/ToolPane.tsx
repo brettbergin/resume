@@ -75,6 +75,13 @@ const LIVE_INTERVAL_MS = 1000
  * set, the way the shell's other controls do it. */
 const PANE_BUTTON = `inline-flex ${TAP_TARGET_HEIGHT} items-center justify-center rounded-pill border border-border-strong px-4 text-base text-text hover:text-accent disabled:border-border disabled:text-muted ${FOCUS_RING}`
 
+/** The progress ring's own geometry: a 32px circle with a 4px stroke, sized
+ * to sit beside a line of body text rather than dominate the pane. */
+const RING_SIZE = 32
+const RING_STROKE = 4
+const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
+
 /** Every text box, select and file control in the pane. */
 const CONTROL =
   'w-full min-h-11 rounded-card border border-border bg-surface p-3 font-mono text-base text-text'
@@ -261,15 +268,22 @@ export function ToolPane({
   /** The link this pane's state travels in. Secret option values are left out
    * — an HMAC key or a passphrase has no business riding along in a URL
    * somebody pastes into chat — and the button is disabled outright above the
-   * hash ceiling rather than quietly copying a link with the input missing. */
+   * hash ceiling rather than quietly copying a link with the input missing.
+   * A `sensitive` tool's input is itself the secret, so it is dropped the
+   * same way ToolsPage's auto-write path drops it: only the tool id travels,
+   * matching the empty-box-on-reload contract everywhere else in this file. */
   function shareUrl(): string {
+    const { origin, pathname, search } = window.location
+    if (tool.sensitive === true) {
+      const hash = buildToolHash({ tool: tool.id, input: '', options: {} })
+      return `${origin}${pathname}${search}${hash}`
+    }
     const shareable: ToolOptions = {}
     for (const definition of tool.options ?? []) {
       if (definition.secret !== true) {
         shareable[definition.key] = resolved[definition.key]
       }
     }
-    const { origin, pathname, search } = window.location
     const hash = buildToolHash({ tool: tool.id, input, options: shareable })
     return `${origin}${pathname}${search}${hash}`
   }
@@ -406,6 +420,44 @@ export function ToolPane({
       <p aria-live="polite" className="text-base text-accent empty:hidden">
         {error}
       </p>
+
+      {result?.progress !== undefined && (
+        /* Decorative only — `aria-hidden`, since the fraction it draws is
+         * also a `field` row (TOTP's "Seconds remaining") with the number a
+         * screen reader can actually announce. The transition is a plain
+         * CSS one, so the page's single reduced-motion block already
+         * collapses it along with every other transition on the page. */
+        <svg
+          aria-hidden="true"
+          width={RING_SIZE}
+          height={RING_SIZE}
+          viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+          className="shrink-0"
+        >
+          <circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
+            fill="none"
+            strokeWidth={RING_STROKE}
+            className="stroke-border"
+          />
+          <circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
+            fill="none"
+            strokeWidth={RING_STROKE}
+            strokeLinecap="round"
+            strokeDasharray={RING_CIRCUMFERENCE}
+            strokeDashoffset={
+              RING_CIRCUMFERENCE * (1 - result.progress.fraction)
+            }
+            transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+            className="stroke-accent transition-[stroke-dashoffset] duration-1000 ease-linear"
+          />
+        </svg>
+      )}
 
       {fields.length > 0 && (
         <table className="w-full table-auto border-collapse text-base">

@@ -21,7 +21,10 @@
  * Secrets: option values marked `secret` are kept in memory and left out of
  * the URL, exactly as `ToolPane`'s own share button leaves them out. The
  * address bar is a place people screenshot and paste from, so an HMAC key
- * typed into the page must not appear in it.
+ * typed into the page must not appear in it. A tool marked `sensitive` goes
+ * further still: its input and every option are left out too, since for a
+ * tool like TOTP the input itself is the secret — only the tool id is written,
+ * so a reload selects the tool without restoring what was typed into it.
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -107,10 +110,15 @@ export function ToolsPage() {
       }
       setState(nextState)
 
-      const hash = buildToolHash({
-        ...nextState,
-        options: shareableOptions(current, next.options),
-      })
+      // A sensitive tool's input *is* the secret — an HMAC key on its own can
+      // be dropped from the options, but a TOTP secret or a provisioning URI
+      // is what the reader typed into the box. Only the tool id travels, so
+      // `#/tools/totp` still selects the tool on reload without restoring it.
+      const hash = buildToolHash(
+        current.sensitive === true
+          ? { tool: current.id, input: '', options: {} }
+          : { ...nextState, options: shareableOptions(current, next.options) },
+      )
       const { pathname, search } = window.location
       window.history.replaceState(null, '', `${pathname}${search}${hash}`)
     },
@@ -163,14 +171,17 @@ export function ToolsPage() {
              paste rather than opening an empty pane. Above the fragment's size
              ceiling `buildToolHash` leaves it out, and the switch lands on the
              tool with an empty box — the alternative is a link nothing can
-             open. */
+             open. A detected *sensitive* tool (e.g. a pasted otpauth:// URI
+             scored by totp.detect) never gets its input into the href at
+             all — the anchor's href is visible via hover/inspect and is a
+             live navigation, not the guarded replaceState path below. */
           <p>
             <a
-              href={buildToolHash({
-                tool: detected.id,
-                input: state.input,
-                options: {},
-              })}
+              href={buildToolHash(
+                detected.sensitive === true
+                  ? { tool: detected.id, input: '', options: {} }
+                  : { tool: detected.id, input: state.input, options: {} },
+              )}
               className={CHIP}
             >
               detected as {detected.name}, switch
