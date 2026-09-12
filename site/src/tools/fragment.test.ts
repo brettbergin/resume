@@ -128,6 +128,45 @@ describe('parseToolHash / buildToolHash', () => {
   })
 })
 
+describe('buildToolHash sensitive contract', () => {
+  it('writes only the tool id when sensitive is true, even with input and options set', () => {
+    const hash = buildToolHash(
+      {
+        tool: 'totp',
+        input: 'otpauth://totp/Example:alice@example.com?secret=JBSWY3DPEHPK3PXP',
+        options: { digits: '6', period: '30' },
+      },
+      { sensitive: true },
+    )
+    expect(hash).toBe(`#${TOOLS_ROUTE}/totp`)
+    expect(hash).not.toContain('i=')
+    expect(hash).not.toContain('o=')
+  })
+
+  it('parses a sensitive hash back to the tool with empty input and options', () => {
+    const hash = buildToolHash(
+      { tool: 'totp', input: 'JBSWY3DPEHPK3PXP', options: { digits: '6' } },
+      { sensitive: true },
+    )
+    expect(parseToolHash(hash)).toEqual({
+      tool: 'totp',
+      input: '',
+      options: {},
+    })
+  })
+
+  it('behaves exactly as before when sensitive is false or omitted', () => {
+    const state: ToolHashState = {
+      tool: 'base64',
+      input: 'hello',
+      options: { mode: 'encode' },
+    }
+    expect(buildToolHash(state, { sensitive: false })).toBe(buildToolHash(state))
+    expect(buildToolHash(state)).toContain('i=')
+    expect(buildToolHash(state)).toContain('o=')
+  })
+})
+
 describe('the hash input ceiling', () => {
   const atLimit = 'a'.repeat(MAX_HASH_INPUT_BYTES)
   const overLimit = 'a'.repeat(MAX_HASH_INPUT_BYTES + 1)
