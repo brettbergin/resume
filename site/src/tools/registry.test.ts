@@ -29,6 +29,7 @@ const PINNED_ORDER = [
   'cidr',
   'csp',
   'headers',
+  'cookie',
   'cvss',
   'epoch',
   'secret',
