@@ -177,6 +177,16 @@ export function ToolPane({
     resultListener.current?.(result)
   }, [result])
 
+  /* `onChange` as of the last commit, for the same reason `latest` exists: a
+   * run's result can suggest an input/option update (a pasted CVSS vector
+   * turning into button-group selections) after an `await`, by which point a
+   * `start()` closure captured at an earlier render must not call a stale
+   * `onChange`. */
+  const onChangeRef = useRef(onChange)
+  useEffect(() => {
+    onChangeRef.current = onChange
+  })
+
   /* The newest run's number. A result whose number is no longer this one
    * belongs to a superseded run and is dropped. */
   const sequence = useRef(0)
@@ -210,7 +220,33 @@ export function ToolPane({
     void (async () => {
       try {
         const next = await current.run(value, runOptions)
-        if (id === sequence.current) setResult(next)
+        if (id === sequence.current) {
+          setResult(next)
+          // A run may suggest a replacement input and/or options — a pasted
+          // CVSS vector turning into button-group selections. Applied at
+          // most once per result, and only when it would actually change
+          // something: otherwise a generator or a tool that never suggests
+          // anything would re-fire `onChange` on every run.
+          if (
+            next.suggestedOptions !== undefined ||
+            next.suggestedInput !== undefined
+          ) {
+            const updatedInput = next.suggestedInput ?? value
+            const updatedOptions =
+              next.suggestedOptions !== undefined
+                ? { ...runOptions, ...next.suggestedOptions }
+                : runOptions
+            if (
+              updatedInput !== value ||
+              JSON.stringify(updatedOptions) !== JSON.stringify(runOptions)
+            ) {
+              onChangeRef.current({
+                input: updatedInput,
+                options: updatedOptions,
+              })
+            }
+          }
+        }
       } catch (error) {
         if (id === sequence.current) {
           setResult({ ok: false, output: '', error: failureMessage(error) })
@@ -337,34 +373,62 @@ export function ToolPane({
                 key={definition.key}
                 className="flex min-w-0 grow flex-col gap-2"
               >
-                <label htmlFor={controlId} className={CAPTION}>
-                  {definition.label}
-                </label>
-                {definition.kind === 'select' ? (
-                  <select
-                    id={controlId}
-                    value={resolved[definition.key]}
-                    onChange={(event) => change(event.target.value)}
-                    className={CONTROL}
-                  >
-                    {(definition.choices ?? []).map((choice) => (
-                      <option key={choice.value} value={choice.value}>
-                        {choice.label}
-                      </option>
-                    ))}
-                  </select>
+                {definition.kind === 'button-group' ? (
+                  <fieldset className="flex min-w-0 grow flex-col gap-2">
+                    <legend className={CAPTION}>{definition.label}</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {(definition.choices ?? []).map((choice) => {
+                        const active = resolved[definition.key] === choice.value
+                        return (
+                          <button
+                            key={choice.value}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => change(choice.value)}
+                            className={`${TAP_TARGET_HEIGHT} rounded-sm px-3 text-base ${FOCUS_RING} ${
+                              active
+                                ? 'bg-accent text-background'
+                                : 'border border-border-strong text-text hover:text-accent'
+                            }`}
+                          >
+                            {choice.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </fieldset>
                 ) : (
-                  <input
-                    id={controlId}
-                    // A secret is a secret from the reader's shoulder too, not
-                    // only from the URL.
-                    type={definition.secret === true ? 'password' : 'text'}
-                    value={resolved[definition.key]}
-                    placeholder={definition.placeholder}
-                    autoComplete="off"
-                    onChange={(event) => change(event.target.value)}
-                    className={CONTROL}
-                  />
+                  <>
+                    <label htmlFor={controlId} className={CAPTION}>
+                      {definition.label}
+                    </label>
+                    {definition.kind === 'select' ? (
+                      <select
+                        id={controlId}
+                        value={resolved[definition.key]}
+                        onChange={(event) => change(event.target.value)}
+                        className={CONTROL}
+                      >
+                        {(definition.choices ?? []).map((choice) => (
+                          <option key={choice.value} value={choice.value}>
+                            {choice.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id={controlId}
+                        // A secret is a secret from the reader's shoulder too,
+                        // not only from the URL.
+                        type={definition.secret === true ? 'password' : 'text'}
+                        value={resolved[definition.key]}
+                        placeholder={definition.placeholder}
+                        autoComplete="off"
+                        onChange={(event) => change(event.target.value)}
+                        className={CONTROL}
+                      />
+                    )}
+                  </>
                 )}
               </div>
             )

@@ -7,7 +7,7 @@
  * The order is pinned, not alphabetical and not arrival order:
  *
  *   magic, base64, hex, url, html, json, jwt, hash, cert, gpg, cidr, csp,
- *   epoch, secret, totp
+ *   cvss, epoch, secret, totp
  *
  * magic first because it is the landing state; then the encodings, grouped;
  * then the credential and crypto tools; then the network and time ones. It
@@ -24,6 +24,7 @@ import { base64 } from './base64.ts'
 import { cert } from './cert.ts'
 import { cidr } from './cidr.ts'
 import { csp } from './csp.ts'
+import { cvss } from './cvss.ts'
 import { epoch } from './epoch.ts'
 import { gpg } from './gpg.ts'
 import { hash } from './hash.ts'
@@ -60,6 +61,7 @@ export const tools: readonly Tool[] = [
   gpg,
   cidr,
   csp,
+  cvss,
   epoch,
   secret,
   totp,

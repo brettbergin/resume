@@ -31,6 +31,7 @@ const TOOL_NAMES = [
   'hash',
   'cert',
   'cidr',
+  'CVSS',
   'epoch',
   'TOTP',
 ]
