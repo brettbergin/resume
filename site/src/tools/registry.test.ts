@@ -27,6 +27,7 @@ const PINNED_ORDER = [
   'cert',
   'gpg',
   'cidr',
+  'csp',
   'epoch',
   'secret',
   'totp',
