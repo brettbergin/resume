@@ -6,16 +6,15 @@
  * `analyzeCSP` from `./csp.ts` is reused rather than duplicated for the
  * `content-security-policy` row and for deciding whether `frame-ancestors`
  * covers a missing `x-frame-options` — see the note on that export in
- * `csp.ts`. `Set-Cookie` attributes are checked inline rather than through a
- * cookie parser: issue #124 (the cookie tool) had not landed when this was
- * written, and the checks this grader needs (`Secure`, `HttpOnly`,
- * `SameSite`) are a handful of case-insensitive substring tests, not worth a
- * cross-module dependency for.
+ * `csp.ts`. `Set-Cookie` attributes are checked the same way, via
+ * `analyzeCookie` from `./cookie.ts`, so a rule about what makes a cookie
+ * safe lives in exactly one place regardless of which tool is asking.
  *
  * Everything here is pure: `parseHeaders` and `gradeHeaders` take strings and
  * return data, with no knowledge of where the header block came from.
  */
 
+import { analyzeCookie, parseSetCookieHeader } from './cookie.ts'
 import { analyzeCSP } from './csp.ts'
 import type { Tool, ToolField, ToolOptions, ToolResult } from './types.ts'
 
@@ -80,19 +79,6 @@ function scoreToGrade(score: number): string {
  * else is wrong with the policy. */
 function cspHasFrameAncestors(csp: string): boolean {
   return /(?:^|;)\s*frame-ancestors\b/i.test(csp)
-}
-
-/** `Set-Cookie` attribute tokens are checked case-insensitively, since the
- * spec permits any casing and real servers vary. `SameSite` is only
- * recognised as `SameSite=...` (it always takes a value), while `Secure` and
- * `HttpOnly` are bare flags. */
-function checkCookieAttributes(cookie: string): { secure: boolean; httpOnly: boolean; sameSite: boolean } {
-  const attributes = cookie.split(';').map((part) => part.trim().toLowerCase())
-  return {
-    secure: attributes.some((attribute) => attribute === 'secure'),
-    httpOnly: attributes.some((attribute) => attribute === 'httponly'),
-    sameSite: attributes.some((attribute) => attribute.startsWith('samesite=')),
-  }
 }
 
 function firstValue(headers: Map<string, string[]>, name: string): string | undefined {
@@ -255,23 +241,23 @@ export function gradeHeaders(headers: Map<string, string[]>): HeaderGradeResult 
   // Set-Cookie (one field per repeated header value)
   const setCookies = headers.get('set-cookie') ?? []
   for (const cookie of setCookies) {
-    const { secure, httpOnly, sameSite } = checkCookieAttributes(cookie)
+    const { name, value, attributes } = parseSetCookieHeader(cookie)
+    const analysis = analyzeCookie(name, value, attributes, { isRequest: false })
     const missing: string[] = []
-    if (!secure) {
+    if (!analysis.secure) {
       score -= 5
       missing.push('Secure')
     }
-    if (!httpOnly) {
+    if (!analysis.httpOnly) {
       score -= 5
       missing.push('HttpOnly')
     }
-    if (!sameSite) {
+    if (analysis.sameSite === null) {
       score -= 3
       missing.push('SameSite')
     }
-    const name = cookie.split('=')[0]?.trim() || cookie
     fields.push({
-      label: `Set-Cookie: ${name}`,
+      label: `Set-Cookie: ${name || cookie}`,
       value: missing.length > 0 ? `missing ${missing.join(', ')}` : 'Secure, HttpOnly, SameSite all set',
       warn: missing.length > 0,
     })
