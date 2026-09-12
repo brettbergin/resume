@@ -173,9 +173,24 @@ export function parseToolHash(hash: string): ToolHashState {
  * looks like a bug. The tool id and the options are kept either way, so the
  * link still opens the right tool configured the right way and only the paste
  * is missing.
+ *
+ * @param options.sensitive - When `true`, only the tool id is written: no
+ * `i=` and no `o=`, regardless of what `state.input` or `state.options`
+ * contain. This is the shared contract for a tool whose input itself is the
+ * secret (a TOTP provisioning URI, an AES passphrase) — the caller passes the
+ * real state and lets this function do the dropping, rather than emptying the
+ * state itself before calling in.
  */
-export function buildToolHash(state: ToolHashState): string {
+export function buildToolHash(
+  state: ToolHashState,
+  options?: { sensitive?: boolean },
+): string {
   const tool = TOOL_ID.test(state.tool) ? state.tool : DEFAULT_TOOL_ID
+
+  if (options?.sensitive === true) {
+    return `#${TOOLS_ROUTE}/${tool}`
+  }
+
   const params: string[] = []
 
   if (state.input !== '' && !exceedsHashLimit(state.input)) {

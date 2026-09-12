@@ -115,9 +115,8 @@ export function ToolsPage() {
       // is what the reader typed into the box. Only the tool id travels, so
       // `#/tools/totp` still selects the tool on reload without restoring it.
       const hash = buildToolHash(
-        current.sensitive === true
-          ? { tool: current.id, input: '', options: {} }
-          : { ...nextState, options: shareableOptions(current, next.options) },
+        { tool: current.id, input: next.input, options: shareableOptions(current, next.options) },
+        { sensitive: current.sensitive },
       )
       const { pathname, search } = window.location
       window.history.replaceState(null, '', `${pathname}${search}${hash}`)
@@ -178,9 +177,8 @@ export function ToolsPage() {
           <p>
             <a
               href={buildToolHash(
-                detected.sensitive === true
-                  ? { tool: detected.id, input: '', options: {} }
-                  : { tool: detected.id, input: state.input, options: {} },
+                { tool: detected.id, input: state.input, options: {} },
+                { sensitive: detected.sensitive },
               )}
               className={CHIP}
             >

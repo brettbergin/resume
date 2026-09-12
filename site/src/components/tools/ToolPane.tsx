@@ -310,17 +310,16 @@ export function ToolPane({
    * matching the empty-box-on-reload contract everywhere else in this file. */
   function shareUrl(): string {
     const { origin, pathname, search } = window.location
-    if (tool.sensitive === true) {
-      const hash = buildToolHash({ tool: tool.id, input: '', options: {} })
-      return `${origin}${pathname}${search}${hash}`
-    }
     const shareable: ToolOptions = {}
     for (const definition of tool.options ?? []) {
       if (definition.secret !== true) {
         shareable[definition.key] = resolved[definition.key]
       }
     }
-    const hash = buildToolHash({ tool: tool.id, input, options: shareable })
+    const hash = buildToolHash(
+      { tool: tool.id, input, options: shareable },
+      { sensitive: tool.sensitive },
+    )
     return `${origin}${pathname}${search}${hash}`
   }
 
