@@ -46,7 +46,13 @@ export interface ToolDetection {
  * `fraction` alone (1 = just started, 0 = about to roll over), so the pane
  * stays generic rather than knowing what a "window" means for any given tool.
  * Decorative only: the number it represents belongs in a `field` too, since
- * the ring itself carries no accessible name. */
+ * the ring itself carries no accessible name.
+ *
+ * `suggestedOptions` and `suggestedInput` let a run push a state change back
+ * into the pane instead of merely describing one — the CVSS calculator
+ * parsing a pasted vector into button-group selections, and clearing the
+ * input afterward (`suggestedInput: ''`) so a later button click is not
+ * overridden by the stale paste still sitting in the box. */
 export interface ToolResult {
   ok: boolean
   output: string
@@ -54,6 +60,8 @@ export interface ToolResult {
   error?: string
   detected?: ToolDetection
   progress?: { fraction: number }
+  suggestedOptions?: ToolOptions
+  suggestedInput?: string
 }
 
 /** One control in the pane's options row. Values are always strings, so the
@@ -65,11 +73,15 @@ export interface ToolResult {
  * must not travel in a link the reader then pastes into chat — the fragment
  * is the page's whole state-sharing mechanism, so the exclusion has to live
  * on the option itself rather than in whichever component happens to build
- * the URL. */
+ * the URL.
+ *
+ * `kind: 'button-group'` renders `choices` as a row of buttons rather than a
+ * `<select>` — a CVSS metric where the reader picks one of a handful of short
+ * values and a tap target matters more than a dropdown's compactness. */
 export interface ToolOption {
   key: string
   label: string
-  kind: 'text' | 'select'
+  kind: 'text' | 'select' | 'button-group'
   default: string
   choices?: readonly { value: string; label: string }[]
   placeholder?: string

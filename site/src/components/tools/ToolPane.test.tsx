@@ -112,6 +112,17 @@ const SELECT_OPTION = {
   ],
 } as const
 
+const BUTTON_GROUP_OPTION = {
+  key: 'av',
+  label: 'Attack Vector',
+  kind: 'button-group',
+  default: 'N',
+  choices: [
+    { value: 'N', label: 'Network' },
+    { value: 'A', label: 'Adjacent' },
+  ],
+} as const
+
 const SECRET_OPTION = {
   key: 'hmacKey',
   label: 'HMAC key',
@@ -418,6 +429,94 @@ describe('ToolPane', () => {
         container.querySelector(`label[for="${control.id}"]`),
       ).not.toBeNull()
     }
+  })
+
+  it('renders a button-group option as a row of buttons, not a select', async () => {
+    const tool = makeStub({ options: [BUTTON_GROUP_OPTION] })
+    const run = vi.mocked(tool.run)
+    await mount(tool, { input: 'abc' })
+
+    const group = screen.getByRole('group', { name: 'Attack Vector' })
+    const network = screen.getByRole('button', { name: 'Network' })
+    const adjacent = screen.getByRole('button', { name: 'Adjacent' })
+
+    expect(group.querySelectorAll('button')).toHaveLength(2)
+    expect(network.className).toContain(FOCUS_RING)
+    expect(network.className).toContain(TAP_TARGET_HEIGHT)
+
+    // The default value is selected: an accent style and aria-pressed both
+    // say so, so the selection is not colour-only.
+    expect(network.getAttribute('aria-pressed')).toBe('true')
+    expect(network.className).toContain('bg-accent')
+    expect(adjacent.getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(adjacent)
+
+    expect(run).toHaveBeenCalledTimes(2)
+    expect(run.mock.calls[1][1]).toEqual({ av: 'A' })
+    await flush()
+    expect(adjacent.getAttribute('aria-pressed')).toBe('true')
+    expect(network.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('applies a suggested input and options exactly once when a run returns them', async () => {
+    // A bare spy rather than the shared Harness: what this pins is the single
+    // onChange call the pane makes off a suggestion, not whatever a further
+    // run against the (now empty) input would or would not do — that is the
+    // tool's own business, not the pane's.
+    const changes: ToolPaneState[] = []
+    function SpyHarness({ tool }: { tool: Tool }) {
+      const [state, setState] = useState<ToolPaneState>({
+        input: '',
+        options: {},
+      })
+      return (
+        <ToolPane
+          tool={tool}
+          input={state.input}
+          options={state.options}
+          onChange={(next) => {
+            changes.push(next)
+            setState(next)
+          }}
+        />
+      )
+    }
+
+    const tool = makeStub({
+      options: [BUTTON_GROUP_OPTION],
+      run: vi.fn(
+        (input: string, options: ToolOptions): ToolResult => ({
+          ok: true,
+          output: input,
+          ...(input === 'paste me'
+            ? { suggestedInput: '', suggestedOptions: { av: 'A' } }
+            : {}),
+          fields: [{ label: 'options', value: JSON.stringify(options) }],
+        }),
+      ),
+    })
+
+    render(<SpyHarness tool={tool} />)
+    await flush()
+
+    fireEvent.change(screen.getByLabelText('Input'), {
+      target: { value: 'paste me' },
+    })
+    // The keystroke itself is one onChange (typing, unchanged options); the
+    // debounced run's suggestion is the second, and the only one this test
+    // cares about pinning.
+    expect(changes).toHaveLength(1)
+
+    await advance(DEBOUNCE)
+    await flush()
+
+    expect(changes).toHaveLength(2)
+    expect(changes[1]).toEqual({ input: '', options: { av: 'A' } })
+
+    // No further onChange from the same suggestion once it has landed.
+    await advance(DEBOUNCE)
+    expect(changes).toHaveLength(2)
   })
 
   it('disables the copy-link button above the hash ceiling', async () => {
