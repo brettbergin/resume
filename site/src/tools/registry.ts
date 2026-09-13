@@ -7,7 +7,7 @@
  * The order is pinned, not alphabetical and not arrival order:
  *
  *   magic, base64, hex, url, html, json, jwt, hash, cert, gpg, cidr, csp,
- *   headers, cookie, cvss, epoch, secret, totp
+ *   headers, cookie, cvss, epoch, secret, totp, aes
  *
  * magic first because it is the landing state; then the encodings, grouped;
  * then the credential and crypto tools; then the network and time ones. It
@@ -20,6 +20,7 @@
  * people share, so it cannot drift from the module it names.
  */
 
+import { aes } from './aes.ts'
 import { base64 } from './base64.ts'
 import { cert } from './cert.ts'
 import { cidr } from './cidr.ts'
@@ -69,6 +70,7 @@ export const tools: readonly Tool[] = [
   epoch,
   secret,
   totp,
+  aes,
 ] as const
 
 /** The tool a fragment's `<toolId>` names, or `undefined` when it names none
