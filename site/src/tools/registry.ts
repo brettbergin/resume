@@ -7,7 +7,7 @@
  * The order is pinned, not alphabetical and not arrival order:
  *
  *   magic, base64, hex, url, html, json, jwt, hash, cert, gpg, cidr, csp,
- *   headers, cookie, cvss, epoch, secret, totp, aes
+ *   headers, cookie, cvss, epoch, secret, totp, aes, pkce
  *
  * magic first because it is the landing state; then the encodings, grouped;
  * then the credential and crypto tools; then the network and time ones. It
@@ -36,6 +36,7 @@ import { html } from './html.ts'
 import { json } from './json.ts'
 import { jwt } from './jwt.ts'
 import { createMagic } from './magic.ts'
+import { pkce } from './pkce.ts'
 import { secret } from './secret.ts'
 import { totp } from './totp.ts'
 import type { Tool } from './types.ts'
@@ -71,6 +72,7 @@ export const tools: readonly Tool[] = [
   secret,
   totp,
   aes,
+  pkce,
 ] as const
 
 /** The tool a fragment's `<toolId>` names, or `undefined` when it names none
