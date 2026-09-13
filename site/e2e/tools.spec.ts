@@ -236,6 +236,50 @@ test('keeps a TOTP secret out of the URL on every path that can write one', asyn
   expect(href).not.toContain('i=')
 })
 
+test('keeps an AES passphrase and note out of the URL on every path that can write one', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const passphrase = 'correct horse battery staple'
+  const note = 'meet at the usual place, unicode too: \u{1F511}'
+
+  // Direct entry: filling both the passphrase option and the note input
+  // produces a ciphertext blob in the output, but the sensitive contract
+  // keeps the hash at the bare tool id regardless.
+  await openTools(page, '#/tools/aes')
+  await page.getByLabel('Passphrase').fill(passphrase)
+  await input(page).fill(note)
+  await expect(output(page)).not.toHaveText('')
+  expect(page.url()).not.toContain(encodeURIComponent(passphrase))
+  expect(page.url()).not.toContain(encodeURIComponent(note))
+  expect(page.url()).not.toContain('i=')
+  expect(page.url()).not.toContain('o=')
+  const shared = page.url()
+
+  // A fragment reload selects the aes tool without restoring what was typed
+  // into either the note or the passphrase.
+  await page.reload()
+  expect(page.url()).toBe(shared)
+  await expect(
+    page.getByRole('link', { name: 'AES-GCM', exact: true }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(input(page)).toHaveValue('')
+  await expect(page.getByLabel('Passphrase')).toHaveValue('')
+
+  // The Copy link button builds the same sensitive-safe hash rather than the
+  // input-carrying one every other tool's share link uses.
+  await page.getByLabel('Passphrase').fill(passphrase)
+  await input(page).fill(note)
+  await expect(output(page)).not.toHaveText('')
+  await page.getByRole('button', { name: 'Copy link' }).click()
+  const copiedLink = await page.evaluate(() => navigator.clipboard.readText())
+  expect(copiedLink).not.toContain(encodeURIComponent(passphrase))
+  expect(copiedLink).not.toContain(encodeURIComponent(note))
+  expect(copiedLink).not.toContain('i=')
+  expect(copiedLink).not.toContain('o=')
+})
+
 test.describe('at 375x667', () => {
   test.use({ viewport: { width: 375, height: 667 } })
 

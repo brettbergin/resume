@@ -34,6 +34,7 @@ const PINNED_ORDER = [
   'epoch',
   'secret',
   'totp',
+  'aes',
 ] as const
 
 /** The module file names in this directory, minus the tests, so a tool's id
