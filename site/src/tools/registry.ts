@@ -7,13 +7,14 @@
  * The order is pinned, not alphabetical and not arrival order:
  *
  *   magic, base64, hex, url, html, json, jwt, hash, cert, gpg, cidr, csp,
- *   headers, cookie, cvss, epoch, secret, totp, aes
+ *   headers, cookie, cvss, saml, epoch, secret, totp, aes
  *
  * magic first because it is the landing state; then the encodings, grouped;
  * then the credential and crypto tools; then the network and time ones. It
  * also settles ties in detection — when two tools return the same confidence,
  * the earlier one wins — which is why it stays stable as tools are added.
- * A new tool is inserted at its position above rather than appended.
+ * A new tool is inserted at its position above rather than appended: the SAML
+ * decoder's `'saml'` joins the appsec cluster, after `cvss` and before `epoch`.
  *
  * Every entry's `id` matches its module's file name (`base64` lives in
  * `base64.ts`), which `registry.test.ts` enforces: the id appears in URLs
@@ -36,6 +37,7 @@ import { html } from './html.ts'
 import { json } from './json.ts'
 import { jwt } from './jwt.ts'
 import { createMagic } from './magic.ts'
+import { saml } from './saml.ts'
 import { secret } from './secret.ts'
 import { totp } from './totp.ts'
 import type { Tool } from './types.ts'
@@ -67,6 +69,7 @@ export const tools: readonly Tool[] = [
   headers,
   cookie,
   cvss,
+  saml,
   epoch,
   secret,
   totp,

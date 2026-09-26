@@ -31,6 +31,7 @@ const PINNED_ORDER = [
   'headers',
   'cookie',
   'cvss',
+  'saml',
   'epoch',
   'secret',
   'totp',
