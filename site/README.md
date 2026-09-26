@@ -614,6 +614,19 @@ Each is a three-byte old-format public-key packet — `0x98` (tag 6, one-byte
 length), `0x01`, then `0x05` or `0x06` — armored with its own CRC-24, which is
 enough for the parser to reach the version and stop.
 
+`saml-response.xml` has no generating tool either: it is a hand-written
+`saml2p:Response` — protocol and assertion namespaces on different prefixes, an
+`Issuer` at both levels, a `Subject`, a `Conditions` window, an
+`AudienceRestriction` and an enveloped `ds:Signature`. The signature is not a
+real one and is not meant to be: the SAML tool reports whether a `Signature`
+element is *present* and never that it verified, so a fixture with a valid
+signature would test a claim the tool does not make. Its `NotOnOrAfter` is
+pinned to 2015, permanently in the past, so the expired warning is a property
+of the fixture rather than of the day the suite runs; the still-valid case is
+built in `src/tools/saml.test.ts` against a faked clock instead. The file is
+stored already indented the way the tool's pretty printer emits, which is what
+lets the suite assert the formatted output against the fixture itself.
+
 The expected values are read out of the same tools —
 `openssl x509 -noout -fingerprint -sha256 -serial -dates -dateopt iso_8601`,
 and `ssh-keygen -lf` / `ssh-keygen -E md5 -lf` for the two SSH fingerprints —
