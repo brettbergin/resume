@@ -630,6 +630,31 @@ describe('ToolPane', () => {
     expect(link).not.toContain('JBSWY3DPEHPK3PXP')
   })
 
+  it('renders a per-field copy button only for a field with copy: true', async () => {
+    const tool = makeStub({
+      run: vi.fn(
+        (input: string): ToolResult => ({
+          ok: true,
+          output: input,
+          fields: [
+            { label: 'Verifier', value: 'abc123', copy: true },
+            { label: 'Length', value: '6' },
+          ],
+        }),
+      ),
+    })
+    await mount(tool, { input: 'abc' })
+
+    const copyButton = screen.getByRole('button', { name: 'Copy Verifier' })
+    expect(copyButton.className).toContain(FOCUS_RING)
+    expect(copyButton.className).toContain(TAP_TARGET_HEIGHT)
+
+    fireEvent.click(copyButton)
+    expect(clipboardWrites).toHaveBeenCalledWith('abc123')
+
+    expect(screen.queryByRole('button', { name: 'Copy Length' })).toBeNull()
+  })
+
   it('renders a failure inline in a polite live region, never as an alert', async () => {
     const tool = makeStub({
       run: vi.fn(
