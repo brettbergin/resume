@@ -79,4 +79,85 @@ describe('ContactSection', () => {
     }
     expect(classes).toContain(TAP_TARGET_HEIGHT)
   })
+
+  /*
+   * The two inquiry CTAs. Their copy lives in the component rather than in the
+   * `contact` export (test/resume-md-sync.test.ts holds that export to
+   * resume.md verbatim), so these assert the shape the visitor gets: a
+   * `mailto:` to the same address as the plain email link, a subject that says
+   * which inquiry it is, and the same focus ring and tap target every other
+   * control on the page carries.
+   */
+  it('renders a technical-consulting CTA as a mailto link with a pre-filled subject', () => {
+    renderSection()
+
+    const link = screen.getByRole('link', {
+      name: 'Inquire about technical consulting',
+    })
+
+    expect(link.getAttribute('href')).toBe(
+      `mailto:${contact.email}?subject=${encodeURIComponent('Technical consulting inquiry')}`,
+    )
+
+    const classes = classesOf(link)
+    for (const cls of FOCUS_RING.split(' ')) {
+      expect(classes).toContain(cls)
+    }
+    expect(classes).toContain(TAP_TARGET_HEIGHT)
+  })
+
+  it('renders a Lantern CTA as a separate mailto link with its own subject', () => {
+    renderSection()
+
+    const link = screen.getByRole('link', { name: 'Ask about Lantern' })
+
+    expect(link.getAttribute('href')).toBe(
+      `mailto:${contact.email}?subject=${encodeURIComponent('Lantern inquiry')}`,
+    )
+
+    const classes = classesOf(link)
+    for (const cls of FOCUS_RING.split(' ')) {
+      expect(classes).toContain(cls)
+    }
+    expect(classes).toContain(TAP_TARGET_HEIGHT)
+  })
+
+  it('gives the two CTAs distinct accessible names and distinct subjects', () => {
+    renderSection()
+
+    const consulting = screen.getByRole('link', {
+      name: 'Inquire about technical consulting',
+    })
+    const lantern = screen.getByRole('link', { name: 'Ask about Lantern' })
+
+    expect(consulting).not.toBe(lantern)
+    expect(consulting.getAttribute('href')).not.toBe(
+      lantern.getAttribute('href'),
+    )
+  })
+
+  it('says what Lantern is before the link that asks about it', () => {
+    const { container } = renderSection()
+
+    // The blurb has to tell a visitor who has never heard of Lantern that it
+    // is Brett's, unreleased and in progress — that is what makes the CTA
+    // beside it answerable.
+    expect(container.textContent).toContain(
+      'Lantern is an app Brett is building',
+    )
+    expect(container.textContent).toContain('has not been released yet')
+
+    const link = screen.getByRole('link', { name: 'Ask about Lantern' })
+    const blurb = Array.from(container.querySelectorAll('p')).find((node) =>
+      (node.textContent ?? '').includes('Lantern is an app Brett is building'),
+    )
+
+    if (blurb === undefined) throw new Error('no Lantern blurb was rendered')
+
+    // DOCUMENT_POSITION_FOLLOWING: the link comes after the blurb in reading
+    // order, so a screen reader hears the description first.
+    expect(
+      blurb.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
 })
