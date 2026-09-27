@@ -258,7 +258,7 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 | `src/components/ProjectsSection.tsx` | The Projects section's content: its `SectionHeading`, and one card per entry of `projects` from `src/data/resume.ts` in the array's own order |
 | `src/components/ProjectCard.tsx`  | One project's card: name and description, with the whole card being the link out to the project's GitHub repo |
 | `src/components/AchievementsSection.tsx` | The Achievements section's content: its `SectionHeading`, and one callout/stat card per entry of `achievements` from `src/data/resume.ts` in the array's own order |
-| `src/components/ContactSection.tsx` | The Contact section's content: its `SectionHeading`, and every field of `contact` from `src/data/resume.ts` as a description list |
+| `src/components/ContactSection.tsx` | The Contact section's content: its `SectionHeading`, every field of `contact` from `src/data/resume.ts` as a description list, and two `mailto:` inquiry CTAs (technical consulting, and Lantern) whose copy lives in the component rather than in `contact` |
 | `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
 | `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
 | `src/data/sections.ts`            | The section registry: the single source of both the nav entries and the section ids   |
