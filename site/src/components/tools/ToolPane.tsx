@@ -89,6 +89,11 @@ const CONTROL =
 /** The caption above each region of the pane. */
 const CAPTION = 'text-base text-muted'
 
+/** A field row's own copy button — smaller than `PANE_BUTTON` so it sits
+ * beside a value rather than dominating the row, but still at the 44px floor
+ * and with the same focus ring every other control in the pane carries. */
+const FIELD_COPY_BUTTON = `inline-flex ${TAP_TARGET_HEIGHT} items-center justify-center rounded-pill border border-border-strong px-2 text-sm text-text hover:text-accent ${FOCUS_RING}`
+
 /** The drop zone's own text, which is both the instruction a reader sees and
  * the accessible name of the file input inside it. */
 const FILE_ZONE_LABEL = 'Drop a file here, or choose one'
@@ -540,7 +545,19 @@ export function ToolPane({
                   {field.label}
                 </th>
                 <td className="border-b border-border py-2 align-top break-all font-mono">
-                  {field.value}
+                  <span className="inline-flex items-center gap-2">
+                    {field.value}
+                    {field.copy === true && (
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(field.value)}
+                        aria-label={`Copy ${field.label}`}
+                        className={FIELD_COPY_BUTTON}
+                      >
+                        Copy
+                      </button>
+                    )}
+                  </span>
                 </td>
               </tr>
             ))}

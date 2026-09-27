@@ -36,6 +36,7 @@ const PINNED_ORDER = [
   'secret',
   'totp',
   'aes',
+  'pkce',
 ] as const
 
 /** The module file names in this directory, minus the tests, so a tool's id
@@ -76,6 +77,48 @@ describe('the tool registry', () => {
   it('lists the registered tools in the pinned sidebar order', () => {
     const expected = PINNED_ORDER.filter((id) => ids.includes(id))
     expect(ids).toEqual(expected)
+  })
+})
+
+/** The option kinds `ToolPane` has a branch for. A tool that declares
+ * anything else gets a control the pane renders as a plain text box, or none
+ * at all — a mismatch that only shows up in the browser, so it is asserted
+ * against the registry here instead. Extending it means extending the pane
+ * first. */
+const RENDERABLE_KINDS = ['text', 'select', 'button-group']
+
+describe('the option contract', () => {
+  it('declares only option kinds the pane renders', () => {
+    for (const tool of tools) {
+      for (const option of tool.options ?? []) {
+        expect(RENDERABLE_KINDS, `${tool.id}.${option.key}`).toContain(
+          option.kind,
+        )
+      }
+    }
+  })
+
+  it('gives every option a unique key and a label', () => {
+    for (const tool of tools) {
+      const keys = (tool.options ?? []).map((option) => option.key)
+      expect(new Set(keys).size, tool.id).toBe(keys.length)
+      for (const option of tool.options ?? []) {
+        expect(option.label, `${tool.id}.${option.key}`).not.toBe('')
+      }
+    }
+  })
+
+  it('defaults every choice-based option to one of its own choices', () => {
+    // A default outside the list renders as no button pressed and no option
+    // selected, which reads as a broken control rather than an unset one.
+    for (const tool of tools) {
+      for (const option of tool.options ?? []) {
+        if (option.kind === 'text') continue
+        const values = (option.choices ?? []).map((choice) => choice.value)
+        expect(values.length, `${tool.id}.${option.key}`).toBeGreaterThan(0)
+        expect(values, `${tool.id}.${option.key}`).toContain(option.default)
+      }
+    }
   })
 })
 
