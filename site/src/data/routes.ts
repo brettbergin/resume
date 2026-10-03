@@ -1,9 +1,10 @@
 /*
  * The routes the header links to, as opposed to the sections it scrolls to.
  *
- * There is one today — `~/tools`, the security toolbox — and it is listed
- * here rather than in `sections.ts` because the two are not the same kind of
- * link. A section id is an on-page anchor: `App.tsx` renders an element with
+ * There are two today — `~/tools`, the security toolbox, and `~/game`, the
+ * Snake board — and they are listed here rather than in `sections.ts` because
+ * the two are not the same kind of link. A section id is an on-page anchor:
+ * `App.tsx` renders an element with
  * that id, the nav's `#skills` scrolls to it, and `App.test.tsx` asserts that
  * every same-page `#`-link resolves to an element id. A route names a view
  * that *replaces* the sections, so nothing on the page ever carries `/tools`
@@ -18,4 +19,5 @@ import type { RouteLink } from './types.ts'
 
 export const routes: readonly RouteLink[] = [
   { id: 'tools', label: '~/tools', href: '#/tools' },
+  { id: 'game', label: '~/game', href: '#/game' },
 ] as const
