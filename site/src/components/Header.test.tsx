@@ -483,4 +483,35 @@ describe('Header', () => {
 
     expect(gaps).toEqual(['gap-2'])
   })
+
+  /*
+   * The inline nav is widest, relative to the room it has, at exactly the
+   * width it appears: 768px, where the bar has 704px after `md:px-8` and the
+   * pills must share it with the theme toggle. Nothing in that row shrinks —
+   * each label is one unbreakable word wider than its 44px tap target — so an
+   * over-budget nav pushes the document sideways instead of compressing, which
+   * is the horizontal-overflow failure e2e/responsive.spec.ts reports at
+   * 768x1024.
+   *
+   * jsdom has no layout engine, so this cannot measure the bar; what it can do
+   * is pin the padding step that buys the budget back, so the narrower pill is
+   * not quietly widened again by an edit made with the browser suite out of
+   * reach.
+   */
+  it('narrows the inline nav pills until lg', () => {
+    render(<Header />)
+
+    const nav = screen.getByRole('navigation', { name: 'Primary' })
+
+    for (const link of within(nav).getAllByRole('link')) {
+      const classes = link.className.split(/\s+/)
+
+      expect(classes).toContain('px-2')
+      expect(classes).toContain('lg:px-3')
+      // The unprefixed padding is the `md` one: below `md` the nav is hidden
+      // and these links are not on screen at all, so a bare `px-3` here would
+      // be the desktop value applying at the one width that cannot afford it.
+      expect(classes).not.toContain('px-3')
+    }
+  })
 })

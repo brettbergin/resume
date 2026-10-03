@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { isGameRoute } from '../game/route.ts'
 import { isToolsRoute } from '../tools/fragment.ts'
 import { routes } from './routes.ts'
 import { sections } from './sections.ts'
@@ -12,9 +13,10 @@ import { sections } from './sections.ts'
  */
 
 describe('page routes', () => {
-  it('lists the tools route', () => {
+  it('lists the tools and game routes', () => {
     expect(routes).toEqual([
       { id: 'tools', label: '~/tools', href: '#/tools' },
+      { id: 'game', label: '~/game', href: '#/game' },
     ])
   })
 
@@ -36,9 +38,19 @@ describe('page routes', () => {
   })
 
   it('points every route at a hash the router recognises', () => {
+    // One predicate per route, and `App.tsx` asks all of them: a registry
+    // entry no predicate claims is a nav link that renders the resume.
     for (const route of routes) {
-      expect(isToolsRoute(route.href), route.href).toBe(true)
+      expect(
+        isToolsRoute(route.href) || isGameRoute(route.href),
+        route.href,
+      ).toBe(true)
     }
+  })
+
+  it('gives each route a predicate that claims only its own hash', () => {
+    expect(isToolsRoute('#/game')).toBe(false)
+    expect(isGameRoute('#/tools')).toBe(false)
   })
 
   it('shares no id with a section', () => {

@@ -11,8 +11,9 @@
  *
  * It is also the router, in the smallest sense the site needs one. There is no
  * routing library and no second HTML entry: `location.hash` is read into
- * state, and a hash naming the `~/tools` route (`#/tools`, `#/tools/jwt?i=…`)
- * swaps the sections for `ToolsPage` inside the same `<main>`. A fragment
+ * state, and a hash naming a route — `~/tools` (`#/tools`,
+ * `#/tools/jwt?i=…`) or `~/game` (`#/game`) — swaps the sections for that
+ * route's page inside the same `<main>`. A fragment
  * costs no build change, keeps the deployment a single page — the sitemap, the
  * metadata and the Pages workflow all still describe one document — and works
  * on GitHub Pages, which has no rewrite rule to send `/resume/tools/` back to
@@ -28,6 +29,7 @@ import { ContactSection } from './components/ContactSection.tsx'
 import { Cursor } from './components/Cursor.tsx'
 import { ExperienceSection } from './components/ExperienceSection.tsx'
 import { Footer } from './components/Footer.tsx'
+import { GamePage } from './components/game/GamePage.tsx'
 import { Header } from './components/Header.tsx'
 import { HeroSection } from './components/HeroSection.tsx'
 import { ProjectsSection } from './components/ProjectsSection.tsx'
@@ -36,6 +38,7 @@ import { ThemeToggle } from './components/ThemeToggle.tsx'
 import { ToolsPage } from './components/tools/ToolsPage.tsx'
 import { sections } from './data/sections.ts'
 import type { PageSection } from './data/types.ts'
+import { isGameRoute } from './game/route.ts'
 import { FOCUS_RING } from './styles.ts'
 import { isToolsRoute } from './tools/fragment.ts'
 
@@ -140,6 +143,12 @@ function App() {
   }, [])
 
   const onTools = isToolsRoute(hash)
+  const onGame = isGameRoute(hash)
+  /* Everything the shell does differently on a route rather than on the
+   * resume is the same for both of them: no boot animation, no anchor
+   * scrolling, and a `<main>` the skip link can focus directly. Only the
+   * choice of page below distinguishes them. */
+  const onRoute = onTools || onGame
 
   /* Anchor scrolling across a route change, which the browser cannot do for
    * itself: leaving `#/tools` for `#skills` is a hash change the browser
@@ -149,11 +158,11 @@ function App() {
    * element, is the one bit of navigation the fragment does not get for free.
    * `?.()` because jsdom implements no scrollIntoView. */
   useEffect(() => {
-    if (onTools) return
+    if (onRoute) return
     const id = hash.replace(/^#/, '')
     if (id === '') return
     document.getElementById(id)?.scrollIntoView?.()
-  }, [hash, onTools])
+  }, [hash, onRoute])
 
   return (
     <div className="flex min-h-svh flex-col bg-bg text-text">
@@ -161,9 +170,10 @@ function App() {
         href="#main"
         className={SKIP_LINK}
         onClick={(event) => {
-          // Keep the tools route and its input in the fragment while moving
-          // keyboard focus past the header.
-          if (!onTools) return
+          // Keep the current route — and, on `~/tools`, its input — in the
+          // fragment while moving keyboard focus past the header. Letting the
+          // browser follow `#main` here would navigate off the route.
+          if (!onRoute) return
           event.preventDefault()
           const main = document.getElementById('main')
           main?.focus({ preventScroll: true })
@@ -175,8 +185,9 @@ function App() {
 
       {/* The boot animation is the resume's front door and belongs to that
           route only: a shared `#/tools/jwt?i=…` link opening behind a typing
-          animation would hide the thing the link was sent to show. */}
-      {onTools ? null : <BootSequence />}
+          animation would hide the thing the link was sent to show, and
+          `#/game` would spend it swallowing the first arrow presses. */}
+      {onRoute ? null : <BootSequence />}
 
       {/* Chrome for the whole document rather than any one section, so it
           sits outside <main>: two fixed, `pointer-events-none`, aria-hidden
@@ -195,11 +206,13 @@ function App() {
           test/layout-contract.test.ts asserts they agree. */}
       <main
         id="main"
-        tabIndex={onTools ? -1 : undefined}
+        tabIndex={onRoute ? -1 : undefined}
         className="mx-auto w-full max-w-5xl px-4 py-4 md:px-8 md:py-8"
       >
         {onTools ? (
           <ToolsPage />
+        ) : onGame ? (
+          <GamePage />
         ) : (
           sections.map((section, index) => (
             <section
