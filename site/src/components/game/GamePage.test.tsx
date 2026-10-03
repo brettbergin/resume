@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BOARD_HEIGHT, BOARD_WIDTH } from '../../game/engine.ts'
+import { BEST_SCORE_STORAGE_KEY } from '../../game/score.ts'
 import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../../styles.ts'
 import { GamePage, TICK_MS } from './GamePage.tsx'
 
@@ -37,8 +38,36 @@ function advance(count: number) {
   })
 }
 
+/**
+ * Walk the snake into the one piece of food on the board and come back with a
+ * score of 1.
+ *
+ * With `Math.random` pinned to 0 the engine puts food in the first free cell
+ * it enumerates, which on a fresh board is the top-left corner, so the route
+ * is known: left along the middle row to the left wall, then up it. The last
+ * tick arrives on the food rather than past it, so the snake is still alive
+ * and the run can simply be left where it stands.
+ */
+function playUntilFirstFood() {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+
+  fireEvent.click(control())
+  fireEvent.keyDown(window, { key: 'ArrowLeft' })
+  advance(Math.floor(BOARD_WIDTH / 2))
+  fireEvent.keyDown(window, { key: 'ArrowUp' })
+  advance(Math.floor(BOARD_HEIGHT / 2))
+}
+
+beforeEach(() => {
+  // Storage-backed state: every test starts from a browser that has never
+  // seen this page, and leaves one behind for the next.
+  window.localStorage.clear()
+})
+
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
+  window.localStorage.clear()
 })
 
 describe('GamePage', () => {
@@ -221,5 +250,92 @@ describe('GamePage', () => {
     fireEvent.click(control())
 
     expect(control().hasAttribute('disabled')).toBe(true)
+  })
+})
+
+describe('GamePage best score', () => {
+  it('shows a best of zero on a first visit, with nothing in storage', () => {
+    render(<GamePage />)
+
+    expect(screen.getByText('best: 0')).toBeTruthy()
+    expect(window.localStorage.getItem(BEST_SCORE_STORAGE_KEY)).toBeNull()
+  })
+
+  it('reads the stored best on mount', () => {
+    window.localStorage.setItem(BEST_SCORE_STORAGE_KEY, '7')
+
+    render(<GamePage />)
+
+    expect(screen.getByText('best: 7')).toBeTruthy()
+  })
+
+  it('raises the displayed best as soon as it is beaten, and persists it', () => {
+    vi.useFakeTimers()
+    render(<GamePage />)
+
+    playUntilFirstFood()
+
+    // Mid-run, with no reload and no death in between: the point counted
+    // against the stored best the moment it was scored.
+    expect(screen.getByText('score: 1')).toBeTruthy()
+    expect(screen.getByText('best: 1')).toBeTruthy()
+    expect(window.localStorage.getItem(BEST_SCORE_STORAGE_KEY)).toBe('1')
+  })
+
+  it('leaves a higher stored best alone after a weaker run', () => {
+    window.localStorage.setItem(BEST_SCORE_STORAGE_KEY, '7')
+    vi.useFakeTimers()
+    render(<GamePage />)
+
+    playUntilFirstFood()
+
+    expect(screen.getByText('score: 1')).toBeTruthy()
+    expect(screen.getByText('best: 7')).toBeTruthy()
+    expect(window.localStorage.getItem(BEST_SCORE_STORAGE_KEY)).toBe('7')
+  })
+
+  it('keeps the best across a restart within the same visit', () => {
+    vi.useFakeTimers()
+    render(<GamePage />)
+
+    playUntilFirstFood()
+    // One more tick up runs the snake off the top of the board, which is what
+    // frees the control to restart.
+    advance(1)
+    fireEvent.click(control())
+
+    // A new run starts over at zero; the best does not.
+    expect(screen.getByText('score: 0')).toBeTruthy()
+    expect(screen.getByText('best: 1')).toBeTruthy()
+  })
+
+  it('renders with no best rather than throwing when storage is blocked', () => {
+    // The whole object goes, the way Safari in private mode makes even the
+    // property access throw — which is the case the page must survive.
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('SecurityError: storage access is denied')
+      },
+    })
+    vi.useFakeTimers()
+
+    try {
+      expect(() => render(<GamePage />)).not.toThrow()
+      expect(screen.getByText('best: 0')).toBeTruthy()
+
+      playUntilFirstFood()
+
+      // The run is still scored and the best still climbs on screen; only the
+      // part that would outlive the tab is lost.
+      expect(screen.getByText('best: 1')).toBeTruthy()
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(window, 'localStorage', descriptor)
+      } else {
+        delete (window as { localStorage?: Storage }).localStorage
+      }
+    }
   })
 })

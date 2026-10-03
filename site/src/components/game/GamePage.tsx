@@ -22,6 +22,9 @@
  * - WHEN a tick happens: one `setInterval`, cleared on unmount and whenever
  *   the game is not running — which includes the moment the snake dies, so a
  *   dead game stops rather than relying on `tick` being a no-op.
+ * - THE BEST SCORE SO FAR, which outlives the run and the tab: the engine
+ *   scores a single game and forgets it, so the comparison against the stored
+ *   best and the write that follows it belong here, over `src/game/score.ts`.
  * - THE KEYS: arrows and WASD, case-insensitive, with `preventDefault` on the
  *   ones that are handled so that playing does not scroll the page out from
  *   under the board. A press carrying a modifier is left alone: Ctrl+A is the
@@ -45,6 +48,7 @@ import {
   type Direction,
   type GameState,
 } from '../../game/engine.ts'
+import { getStoredBestScore, setStoredBestScore } from '../../game/score.ts'
 import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../../styles.ts'
 
 /** The page's own heading, and the label of the route that reaches it. */
@@ -107,6 +111,11 @@ export function GamePage() {
   /** Whether a game has ever been started, which is the whole difference
    * between the button reading Start and reading Restart. */
   const [started, setStarted] = useState(false)
+  /** The best from before this run: read from storage once, on mount, and
+   * raised at the start of each new run by the run that just finished. The
+   * number actually shown is `best` below, which is this and the live score
+   * together. */
+  const [previousBest, setPreviousBest] = useState(() => getStoredBestScore())
 
   /* The newest key press, read by the interval rather than by a render. */
   const requested = useRef<Direction | undefined>(undefined)
@@ -145,12 +154,28 @@ export function GamePage() {
     // the one that stops it.
   }, [running, state.alive])
 
+  /** What the page shows as the best. Derived rather than held in a second
+   * piece of state: a run that passes the record *is* the record from the
+   * tick it passes it, so there is nothing to synchronise and no extra render
+   * per point scored. */
+  const best = Math.max(previousBest, state.score)
+
+  useEffect(() => {
+    // Storage only — the line on screen is already right. Written on every
+    // point as it is scored rather than once the run is over, so a player who
+    // closes the tab mid-game still keeps what they reached.
+    if (state.score > previousBest) setStoredBestScore(state.score)
+  }, [state.score, previousBest])
+
   const start = useCallback(() => {
+    // Fold the finished run into the record before the board resets:
+    // `state.score` is about to go back to 0, and `best` must not go with it.
+    setPreviousBest((previous) => Math.max(previous, state.score))
     requested.current = undefined
     setState(createInitialState())
     setStarted(true)
     setRunning(true)
-  }, [])
+  }, [state.score])
 
   const over = started && !state.alive
   const rows = Array.from({ length: BOARD_HEIGHT }, (_, y) => y)
@@ -184,6 +209,7 @@ export function GamePage() {
             words together rather than as two interruptions. */}
         <div aria-live="polite" className="flex flex-wrap items-center gap-4">
           <p className="text-base text-text">score: {state.score}</p>
+          <p className="text-base text-muted">best: {best}</p>
           {over && <p className="text-base text-accent">game over</p>}
         </div>
       </div>
