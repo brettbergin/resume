@@ -840,6 +840,155 @@ describe('App game route', () => {
   })
 })
 
+/*
+ * The third route, which exercises the same wiring as `~/snake`: `#/tic-tac-toe`
+ * also carries no payload, and these assert the swap, the shell's landmarks
+ * and skip link, and the two bits of navigation the hash alone does not give.
+ *
+ * Deliberately not asserted here: anything about how tic-tac-toe plays. That
+ * is `src/components/tic-tac-toe/TicTacToePage.test.tsx`'s and the engine's;
+ * this file only knows that `<main>` holds the page.
+ */
+describe('App tic-tac-toe route', () => {
+  /** Set the hash without firing an event, for the first-paint case — the
+   * reader who opened a `#/tic-tac-toe` link rather than clicking the nav. */
+  function setHash(hash: string) {
+    window.history.replaceState(null, '', `${window.location.pathname}${hash}`)
+  }
+
+  async function navigate(hash: string) {
+    await act(async () => {
+      window.location.hash = hash
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    })
+  }
+
+  afterEach(() => {
+    setHash('')
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+  })
+
+  it('renders the tic-tac-toe page inside <main> instead of the sections', () => {
+    setHash('#/tic-tac-toe')
+    render(<App />)
+
+    const main = screen.getByRole('main')
+
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+    expect(main.id).toBe('main')
+    expect(main.querySelectorAll('section[id]')).toHaveLength(0)
+    expect(within(main).getByRole('heading', { level: 1 }).textContent).toBe(
+      '~/tic-tac-toe',
+    )
+    // The board is the page, so the route is only useful if the control that
+    // starts it came with it.
+    expect(within(main).getByRole('button', { name: 'Start' })).toBeTruthy()
+  })
+
+  it('keeps the header, the skip link and the footer across the routes', () => {
+    setHash('#/tic-tac-toe')
+    render(<App />)
+
+    expect(screen.getAllByRole('banner')).toHaveLength(1)
+    expect(screen.getAllByRole('contentinfo')).toHaveLength(1)
+    // One navigation landmark, exactly as on the resume: the `~/tic-tac-toe`
+    // link is another entry in the navs the header already renders, not a
+    // nav of its own.
+    expect(screen.getAllByRole('navigation')).toHaveLength(1)
+    expect(
+      screen.getByRole('link', { name: 'Skip to content' }).getAttribute('href'),
+    ).toBe('#main')
+  })
+
+  it('does not run the boot sequence on the tic-tac-toe route', () => {
+    // The overlay would eat the first keypress of a game opened from a shared
+    // link; clear the once-per-session flag so this is a statement about the
+    // route and not about a second visit.
+    window.sessionStorage.clear()
+    setHash('#/tic-tac-toe')
+    render(<App />)
+
+    expect(document.querySelector('[data-overlay="boot"]')).toBeNull()
+  })
+
+  it('reaches the tic-tac-toe page from the nav link the route registry declares', async () => {
+    render(<App />)
+
+    const link = screen.getByRole('link', { name: '~/tic-tac-toe' })
+    expect(link.getAttribute('href')).toBe('#/tic-tac-toe')
+
+    await navigate('#/tic-tac-toe')
+
+    expect(
+      within(screen.getByRole('main')).getByRole('heading', { level: 1 })
+        .textContent,
+    ).toBe('~/tic-tac-toe')
+  })
+
+  it('switches between tools, snake, tic-tac-toe and the resume on hashchange, without a reload', async () => {
+    setHash('#/tools')
+    render(<App />)
+
+    expect(
+      within(screen.getByRole('main')).getByRole('heading', { level: 1 })
+        .textContent,
+    ).toBe('~/tools')
+
+    await navigate('#/snake')
+    expect(
+      within(screen.getByRole('main')).getByRole('heading', { level: 1 })
+        .textContent,
+    ).toBe('~/snake')
+
+    await navigate('#/tic-tac-toe')
+    const main = screen.getByRole('main')
+    expect(main.querySelectorAll('section[id]')).toHaveLength(0)
+    expect(within(main).getByRole('heading', { level: 1 }).textContent).toBe(
+      '~/tic-tac-toe',
+    )
+
+    // Back to the resume: the same <main>, refilled with the sections.
+    await navigate('#about')
+    expect(screen.getByRole('main').querySelectorAll('section[id]')).toHaveLength(
+      sections.length,
+    )
+  })
+
+  it('scrolls to the section a link out of the tic-tac-toe route names', async () => {
+    // Same shape as the tools-route case, and for the same reason: the
+    // browser resolved `#skills` while the board was still on screen and
+    // found no such element, so the scroll can only happen after the render
+    // this navigation triggers.
+    const scrolled: Element[] = []
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
+      scrolled.push(this)
+    }
+    setHash('#/tic-tac-toe')
+    render(<App />)
+
+    await navigate('#skills')
+
+    expect(scrolled).toEqual([document.getElementById('skills')])
+  })
+
+  it('moves focus to <main> without leaving the route when the skip link is followed', async () => {
+    const user = userEvent.setup()
+    setHash('#/tic-tac-toe')
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: 'Skip to content' }))
+
+    const main = screen.getByRole('main')
+    expect(document.activeElement).toBe(main)
+    // Following `#main` for real would replace the route in the address bar
+    // and drop the player back on the resume.
+    expect(window.location.hash).toBe('#/tic-tac-toe')
+    expect(within(main).getByRole('heading', { level: 1 }).textContent).toBe(
+      '~/tic-tac-toe',
+    )
+  })
+})
+
 describe('App skip link', () => {
   it('is the first focusable element and targets #main', async () => {
     const user = userEvent.setup()

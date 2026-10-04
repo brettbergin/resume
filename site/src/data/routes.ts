@@ -20,4 +20,5 @@ import type { RouteLink } from './types.ts'
 export const routes: readonly RouteLink[] = [
   { id: 'tools', label: '~/tools', href: '#/tools' },
   { id: 'snake', label: '~/snake', href: '#/snake' },
+  { id: 'tic-tac-toe', label: '~/tic-tac-toe', href: '#/tic-tac-toe' },
 ] as const
