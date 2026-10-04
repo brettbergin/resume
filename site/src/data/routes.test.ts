@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { isSnakeRoute } from '../game/route.ts'
+import { isTicTacToeRoute } from '../tic-tac-toe/route.ts'
 import { isToolsRoute } from '../tools/fragment.ts'
 import { routes } from './routes.ts'
 import { sections } from './sections.ts'
@@ -17,6 +18,7 @@ describe('page routes', () => {
     expect(routes).toEqual([
       { id: 'tools', label: '~/tools', href: '#/tools' },
       { id: 'snake', label: '~/snake', href: '#/snake' },
+      { id: 'tic-tac-toe', label: '~/tic-tac-toe', href: '#/tic-tac-toe' },
     ])
   })
 
@@ -42,7 +44,9 @@ describe('page routes', () => {
     // entry no predicate claims is a nav link that renders the resume.
     for (const route of routes) {
       expect(
-        isToolsRoute(route.href) || isSnakeRoute(route.href),
+        isToolsRoute(route.href) ||
+          isSnakeRoute(route.href) ||
+          isTicTacToeRoute(route.href),
         route.href,
       ).toBe(true)
     }
@@ -51,6 +55,10 @@ describe('page routes', () => {
   it('gives each route a predicate that claims only its own hash', () => {
     expect(isToolsRoute('#/snake')).toBe(false)
     expect(isSnakeRoute('#/tools')).toBe(false)
+    expect(isTicTacToeRoute('#/tools')).toBe(false)
+    expect(isTicTacToeRoute('#/snake')).toBe(false)
+    expect(isToolsRoute('#/tic-tac-toe')).toBe(false)
+    expect(isSnakeRoute('#/tic-tac-toe')).toBe(false)
   })
 
   it('shares no id with a section', () => {

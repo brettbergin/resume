@@ -164,8 +164,10 @@ export function Header({ children }: { children?: ReactNode }) {
 
         {/* `gap-2` (8px), not less: these are 44px tap targets sitting next to
             each other on a phone, and adjacent targets need visible space
-            between them to be hittable. */}
-        <div className="flex items-center gap-2">
+            between them to be hittable. `min-w-0` lets this row shrink below
+            the inline nav's content width (see the nav's own comment below)
+            instead of forcing the header row wider than its 768px budget. */}
+        <div className="flex min-w-0 items-center gap-2">
           {/* Inline nav from `md` up; below that the same links live in the
               panel, so this is hidden rather than squeezed.
 
@@ -190,36 +192,46 @@ export function Header({ children }: { children?: ReactNode }) {
               focus ring is an `outline` drawn outside the border box, so it
               is not clipped.
 
-              `px-2`, widening to `px-3` only at `lg`, is what keeps the bar
-              inside 768px — the width at which this nav first appears, and so
-              the width at which it is widest relative to its room. Nothing in
-              this row gives way under pressure: every label is a single
-              unbreakable word wider than the 44px tap target, which makes the
-              nav's min-content width the full sum of the pills, so an
-              over-budget nav pushes the document sideways instead of
-              compressing. (The wordmark is the one flexible thing here, and
-              `truncate` lets it shrink away to nothing before the nav yields a
-              pixel.) At 768px the row has 704px after `md:px-8`; today's eight
-              links at `px-2` plus the theme toggle measure 689px, where the
-              same eight at `px-3` measure 753px and spill 49px past the edge —
-              the horizontal overflow e2e/responsive.spec.ts asserts against at
-              768x1024. The gap stays `gap-2`: test/layout-contract.test.ts
-              holds every gap in the shell at 0.5rem or more, so the padding is
-              the only part of the pill's rhythm that is free to give.
+              `px-2`, widening to `px-3` only at `lg`, is what keeps the bar as
+              tight as it can be at 768px — the width at which this nav first
+              appears, and so the width at which it is widest relative to its
+              room. Nothing in the row gives way under pressure: every label
+              is a single unbreakable word wider than the 44px tap target,
+              which makes the nav's min-content width the full sum of the
+              pills. (The wordmark is the one flexible thing here, and
+              `truncate` lets it shrink away to nothing before the nav yields
+              a pixel.) At 768px the row has 704px after `md:px-8`; eight
+              links at `px-2` plus the theme toggle measure 689px, inside
+              budget, but a ninth link (first added for `~/tic-tac-toe`) does
+              not fit, and the same eight at `px-3` would spill past the edge
+              too. The gap stays `gap-2`: test/layout-contract.test.ts holds
+              every gap in the shell at 0.5rem or more, so padding was never
+              going to buy back enough room for a ninth pill, let alone a
+              longer label.
 
-              That leaves ~15px of slack, which is to say a ninth link does not
-              fit and a longer label may not either. The next thing added here
-              needs the inline nav rethought — collapsing it later, or giving
-              it an overflow — rather than another step of padding. */}
+              So the nav scrolls instead of pushing the document sideways:
+              `md:min-w-0` lets it shrink below its own content width — a
+              flex item's automatic minimum is its content size, which is
+              what forced the row wider before — and `md:overflow-x-auto`
+              turns the leftover width into the nav's own horizontal scroll
+              rather than the page's. `shrink-0` on every link keeps each
+              pill at its natural size (so a link never gets squeezed thinner
+              than its label) and puts all the give on the nav's box instead;
+              `overscroll-x-contain` stops that scroll from chaining into a
+              horizontal page scroll (there isn't one) if the pointer
+              overshoots past the last pill. The links before the budget was
+              blown still render at full size with nothing to scroll past —
+              this only engages once the nav's content is actually wider than
+              the room it has. */}
           <nav
             aria-label="Primary"
-            className="hidden md:flex md:items-center md:gap-2"
+            className="hidden overflow-x-auto overscroll-x-contain md:flex md:min-w-0 md:items-center md:gap-2"
           >
             {NAV_LINKS.map((link) => (
               <a
                 key={link.key}
                 href={link.href}
-                className={`inline-flex ${TAP_TARGET} items-center justify-center overflow-hidden rounded-pill px-2 text-sm text-muted sweep hover:text-accent hover:glow-text focus-visible:text-accent focus-visible:glow-text lg:px-3 ${FOCUS_RING}`}
+                className={`inline-flex ${TAP_TARGET} shrink-0 items-center justify-center overflow-hidden rounded-pill px-2 text-sm text-muted sweep hover:text-accent hover:glow-text focus-visible:text-accent focus-visible:glow-text lg:px-3 ${FOCUS_RING}`}
               >
                 {link.label}
               </a>

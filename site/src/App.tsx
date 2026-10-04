@@ -35,11 +35,13 @@ import { HeroSection } from './components/HeroSection.tsx'
 import { ProjectsSection } from './components/ProjectsSection.tsx'
 import { SkillsSection } from './components/SkillsSection.tsx'
 import { ThemeToggle } from './components/ThemeToggle.tsx'
+import { TicTacToePage } from './components/tic-tac-toe/TicTacToePage.tsx'
 import { ToolsPage } from './components/tools/ToolsPage.tsx'
 import { sections } from './data/sections.ts'
 import type { PageSection } from './data/types.ts'
 import { isSnakeRoute } from './game/route.ts'
 import { FOCUS_RING } from './styles.ts'
+import { isTicTacToeRoute } from './tic-tac-toe/route.ts'
 import { isToolsRoute } from './tools/fragment.ts'
 
 /* First focusable element in the document, and invisible until it takes focus:
@@ -144,11 +146,12 @@ function App() {
 
   const onTools = isToolsRoute(hash)
   const onSnake = isSnakeRoute(hash)
+  const onTicTacToe = isTicTacToeRoute(hash)
   /* Everything the shell does differently on a route rather than on the
-   * resume is the same for both of them: no boot animation, no anchor
+   * resume is the same for all of them: no boot animation, no anchor
    * scrolling, and a `<main>` the skip link can focus directly. Only the
    * choice of page below distinguishes them. */
-  const onRoute = onTools || onSnake
+  const onRoute = onTools || onSnake || onTicTacToe
 
   /* Anchor scrolling across a route change, which the browser cannot do for
    * itself: leaving `#/tools` for `#skills` is a hash change the browser
@@ -213,6 +216,8 @@ function App() {
           <ToolsPage />
         ) : onSnake ? (
           <GamePage />
+        ) : onTicTacToe ? (
+          <TicTacToePage />
         ) : (
           sections.map((section, index) => (
             <section
