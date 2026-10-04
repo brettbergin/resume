@@ -695,12 +695,12 @@ describe('App tools route', () => {
 
 /*
  * The second route, which exercises the router differently from the first:
- * `#/game` carries no payload, so there is nothing to parse and nothing to
+ * `#/snake` carries no payload, so there is nothing to parse and nothing to
  * preserve — what matters is that adding a route changed the shell for *both*
  * of them rather than special-casing one. These assert the swap, that the
  * shell's landmarks and skip link are the same objects the resume route gets,
  * and the two bits of navigation the hash alone does not give: the skip link
- * not walking off `#/game`, and a section link out of it still scrolling.
+ * not walking off `#/snake`, and a section link out of it still scrolling.
  *
  * Deliberately not asserted here: anything about how Snake plays. That is
  * `src/components/game/GamePage.test.tsx`'s and the engine's; this file only
@@ -708,7 +708,7 @@ describe('App tools route', () => {
  */
 describe('App game route', () => {
   /** Set the hash without firing an event, for the first-paint case — the
-   * reader who opened a `#/game` link rather than clicking the nav. */
+   * reader who opened a `#/snake` link rather than clicking the nav. */
   function setHash(hash: string) {
     window.history.replaceState(null, '', `${window.location.pathname}${hash}`)
   }
@@ -726,7 +726,7 @@ describe('App game route', () => {
   })
 
   it('renders the game page inside <main> instead of the sections', () => {
-    setHash('#/game')
+    setHash('#/snake')
     render(<App />)
 
     const main = screen.getByRole('main')
@@ -735,7 +735,7 @@ describe('App game route', () => {
     expect(main.id).toBe('main')
     expect(main.querySelectorAll('section[id]')).toHaveLength(0)
     expect(within(main).getByRole('heading', { level: 1 }).textContent).toBe(
-      '~/game',
+      '~/snake',
     )
     // The board is the page, so the route is only useful if the control that
     // starts it came with it.
@@ -743,12 +743,12 @@ describe('App game route', () => {
   })
 
   it('keeps the header, the skip link and the footer across the routes', () => {
-    setHash('#/game')
+    setHash('#/snake')
     render(<App />)
 
     expect(screen.getAllByRole('banner')).toHaveLength(1)
     expect(screen.getAllByRole('contentinfo')).toHaveLength(1)
-    // One navigation landmark, exactly as on the resume: the `~/game` link is
+    // One navigation landmark, exactly as on the resume: the `~/snake` link is
     // another entry in the navs the header already renders, not a nav of its
     // own.
     expect(screen.getAllByRole('navigation')).toHaveLength(1)
@@ -762,7 +762,7 @@ describe('App game route', () => {
     // shared link; clear the once-per-session flag so this is a statement
     // about the route and not about a second visit.
     window.sessionStorage.clear()
-    setHash('#/game')
+    setHash('#/snake')
     render(<App />)
 
     expect(document.querySelector('[data-overlay="boot"]')).toBeNull()
@@ -771,15 +771,15 @@ describe('App game route', () => {
   it('reaches the game page from the nav link the route registry declares', async () => {
     render(<App />)
 
-    const link = screen.getByRole('link', { name: '~/game' })
-    expect(link.getAttribute('href')).toBe('#/game')
+    const link = screen.getByRole('link', { name: '~/snake' })
+    expect(link.getAttribute('href')).toBe('#/snake')
 
-    await navigate('#/game')
+    await navigate('#/snake')
 
     expect(
       within(screen.getByRole('main')).getByRole('heading', { level: 1 })
         .textContent,
-    ).toBe('~/game')
+    ).toBe('~/snake')
   })
 
   it('switches between the two routes and back on hashchange, without a reload', async () => {
@@ -791,11 +791,11 @@ describe('App game route', () => {
         .textContent,
     ).toBe('~/tools')
 
-    await navigate('#/game')
+    await navigate('#/snake')
     const main = screen.getByRole('main')
     expect(main.querySelectorAll('section[id]')).toHaveLength(0)
     expect(within(main).getByRole('heading', { level: 1 }).textContent).toBe(
-      '~/game',
+      '~/snake',
     )
 
     // Back to the resume: the same <main>, refilled with the sections.
@@ -814,7 +814,7 @@ describe('App game route', () => {
     Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
       scrolled.push(this)
     }
-    setHash('#/game')
+    setHash('#/snake')
     render(<App />)
 
     await navigate('#skills')
@@ -824,7 +824,7 @@ describe('App game route', () => {
 
   it('moves focus to <main> without leaving the route when the skip link is followed', async () => {
     const user = userEvent.setup()
-    setHash('#/game')
+    setHash('#/snake')
     render(<App />)
 
     await user.click(screen.getByRole('link', { name: 'Skip to content' }))
@@ -833,9 +833,9 @@ describe('App game route', () => {
     expect(document.activeElement).toBe(main)
     // Following `#main` for real would replace the route in the address bar
     // and drop the player back on the resume.
-    expect(window.location.hash).toBe('#/game')
+    expect(window.location.hash).toBe('#/snake')
     expect(within(main).getByRole('heading', { level: 1 }).textContent).toBe(
-      '~/game',
+      '~/snake',
     )
   })
 })

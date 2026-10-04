@@ -1,5 +1,5 @@
 /*
- * The `~/game` page: a board, a score, a Start/Restart button and the keyboard.
+ * The `~/snake` page: a board, a score, a Start/Restart button and the keyboard.
  * `App.tsx` renders it inside the shell's existing `<main>` when
  * `location.hash` names the route, the same way `ToolsPage` is mounted, so the
  * header, the footer and the skip link are the resume's — this file owns the
@@ -52,7 +52,7 @@ import { getStoredBestScore, setStoredBestScore } from '../../game/score.ts'
 import { FOCUS_RING, TAP_TARGET_HEIGHT } from '../../styles.ts'
 
 /** The page's own heading, and the label of the route that reaches it. */
-const TITLE = '~/game'
+const TITLE = '~/snake'
 
 /** How long a cell lasts. Fast enough to feel like Snake, slow enough that a
  * turn pressed on sight still lands before the wall does. Exported so a test
