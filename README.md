@@ -19,6 +19,17 @@ publishes it.
   `site/public/` — one copy in git, no way for a second one to go stale.
 - `site/` — the Vite + React + TypeScript frontend deployed to GitHub Pages.
   See [`site/README.md`](site/README.md) for the detail.
+- `site/src/game/` — the `~/snake` route (`#/snake`): the Snake game, its
+  router predicate (`site/src/game/route.ts`) and its engine
+  (`site/src/game/engine.ts`), rendered by
+  `site/src/components/game/GamePage.tsx`. See
+  [The `~/snake` route](site/README.md#the-snake-route).
+- `site/src/tic-tac-toe/` — the `~/tic-tac-toe` route (`#/tic-tac-toe`):
+  tic-tac-toe against a CPU opponent, its router predicate
+  (`site/src/tic-tac-toe/route.ts`) and its engine
+  (`site/src/tic-tac-toe/engine.ts`), rendered by
+  `site/src/components/tic-tac-toe/TicTacToePage.tsx`. See
+  [The `~/tic-tac-toe` route](site/README.md#the-tic-tac-toe-route).
 - `site/src/tools/` — the `~/tools` route (`#/tools`): a browser-only security
   toolbox — JWT, certificate, base64, hex, hash, CIDR and epoch decoders — that
   makes no network request of any kind. See
