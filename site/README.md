@@ -714,6 +714,63 @@ published as text in a polite live region instead, and the controls are real
 buttons carrying the shared `FOCUS_RING` and `TAP_TARGET_HEIGHT` floors from
 `src/styles.ts`, like every other control on the site.
 
+## The `~/tic-tac-toe` route
+
+`~/tic-tac-toe` is a game of tic-tac-toe against a CPU opponent, in the same
+terminal skin as the rest of the site: a 3x3 grid, a Start/Restart button and
+a live turn/win/draw status. It is the third route the header links to, and
+it is built the same way as `~/snake`.
+
+### It is a hash route, not a second page
+
+Everything [the `~/snake` route](#the-snake-route) says about the mechanism
+holds here too. `App.tsx` reads `location.hash` into state and renders
+`TicTacToePage` (`src/components/tic-tac-toe/TicTacToePage.tsx`) inside the
+same `<main id="main">` alongside its checks for `isSnakeRoute` and the tools
+route's own predicate; `isTicTacToeRoute` in `src/tic-tac-toe/route.ts`
+decides, and `TIC_TAC_TOE_ROUTE` there is the single definition of the
+`/tic-tac-toe` path. It matches `#/tic-tac-toe` and `#/tic-tac-toe/`, on the
+whole path rather than a prefix, so `#/tic-tac-toes` is not the game.
+
+**The route is registered, not hand-written into the nav.**
+`src/data/routes.ts` lists it next to the snake and tools entries —
+`{ id: 'tic-tac-toe', label: '~/tic-tac-toe', href: '#/tic-tac-toe' }` — so the
+nav cannot drift from the registry here either.
+
+### The rules live in the engine, not the component
+
+`src/tic-tac-toe/engine.ts` (`site/src/tic-tac-toe/engine.ts` from the repo
+root) is the whole of the game: `createInitialState`
+and `applyMove` are pure, state-in-state-out functions with no DOM, React or
+timer in them, the same shape as `src/game/engine.ts`. An illegal move — an
+occupied cell, or any move once the game has already ended — is rejected by
+handing back the same state reference unchanged, so a caller can tell nothing
+happened by comparing the result to what it passed in with `===`, instead of
+inspecting an error.
+
+The CPU opponent lives in the engine too, as `cpuMove`: it takes a winning
+move if one is available, else blocks the opponent's immediate winning move
+if one is available, else takes a random free cell. Ties within a tier — more
+than one winning cell, more than one blocking cell, more than one free cell —
+are broken via an injected `RandomSource` (the shape `Math.random` already
+has), so a test can pin exactly which cell the CPU lands on instead of
+depending on `Math.random` itself.
+
+`TicTacToePage.tsx` renders that state and nothing more. It owns only what
+the engine deliberately does not: that the player is always `X` and always
+moves first (the engine itself is indifferent to which mark is "the
+player's"), and that the CPU's reply is folded into the same `setState`
+update as the player's own move rather than driven by a separate effect —
+the CPU's move is one pure function call away once the player's move leaves
+the game not over, so there is nothing to synchronise with and no render to
+wait for. Unlike the snake board, the grid here **is** the interaction
+surface, so it is not `aria-hidden`: each cell is a real, individually
+focusable button carrying an accessible name for its row, column and contents
+(`"row 2, column 1, X"`), disabled once it is filled, the game has ended, or
+it is not the player's move. The turn/win/draw status is published as text
+in a polite live region, the same tier the snake's score and game-over text
+use.
+
 ## Styling: Tailwind CSS v4, CSS-first
 
 Tailwind is wired in through the `@tailwindcss/vite` plugin (see
