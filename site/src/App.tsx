@@ -12,7 +12,7 @@
  * It is also the router, in the smallest sense the site needs one. There is no
  * routing library and no second HTML entry: `location.hash` is read into
  * state, and a hash naming a route — `~/tools` (`#/tools`,
- * `#/tools/jwt?i=…`) or `~/game` (`#/game`) — swaps the sections for that
+ * `#/tools/jwt?i=…`) or `~/snake` (`#/snake`) — swaps the sections for that
  * route's page inside the same `<main>`. A fragment
  * costs no build change, keeps the deployment a single page — the sitemap, the
  * metadata and the Pages workflow all still describe one document — and works
@@ -38,7 +38,7 @@ import { ThemeToggle } from './components/ThemeToggle.tsx'
 import { ToolsPage } from './components/tools/ToolsPage.tsx'
 import { sections } from './data/sections.ts'
 import type { PageSection } from './data/types.ts'
-import { isGameRoute } from './game/route.ts'
+import { isSnakeRoute } from './game/route.ts'
 import { FOCUS_RING } from './styles.ts'
 import { isToolsRoute } from './tools/fragment.ts'
 
@@ -143,12 +143,12 @@ function App() {
   }, [])
 
   const onTools = isToolsRoute(hash)
-  const onGame = isGameRoute(hash)
+  const onSnake = isSnakeRoute(hash)
   /* Everything the shell does differently on a route rather than on the
    * resume is the same for both of them: no boot animation, no anchor
    * scrolling, and a `<main>` the skip link can focus directly. Only the
    * choice of page below distinguishes them. */
-  const onRoute = onTools || onGame
+  const onRoute = onTools || onSnake
 
   /* Anchor scrolling across a route change, which the browser cannot do for
    * itself: leaving `#/tools` for `#skills` is a hash change the browser
@@ -186,7 +186,7 @@ function App() {
       {/* The boot animation is the resume's front door and belongs to that
           route only: a shared `#/tools/jwt?i=…` link opening behind a typing
           animation would hide the thing the link was sent to show, and
-          `#/game` would spend it swallowing the first arrow presses. */}
+          `#/snake` would spend it swallowing the first arrow presses. */}
       {onRoute ? null : <BootSequence />}
 
       {/* Chrome for the whole document rather than any one section, so it
@@ -211,7 +211,7 @@ function App() {
       >
         {onTools ? (
           <ToolsPage />
-        ) : onGame ? (
+        ) : onSnake ? (
           <GamePage />
         ) : (
           sections.map((section, index) => (

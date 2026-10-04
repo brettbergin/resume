@@ -262,12 +262,12 @@ kept identical across the three; `test/layout-contract.test.ts` asserts it.
 | `src/components/Footer.tsx`       | Email and GitHub links from `contact`, plus the "built with" note                    |
 | `src/components/ThemeToggle.tsx`  | Light/dark switch — see [Light and dark](#light-and-dark)                             |
 | `src/data/sections.ts`            | The section registry: the single source of both the nav entries and the section ids   |
-| `src/data/routes.ts`              | The route registry: nav entries that are hash *paths* rather than on-page anchors — see [The `~/tools` route](#the-tools-route) and [The `~/game` route](#the-game-route) |
+| `src/data/routes.ts`              | The route registry: nav entries that are hash *paths* rather than on-page anchors — see [The `~/tools` route](#the-tools-route) and [The `~/snake` route](#the-snake-route) |
 | `src/components/tools/ToolsPage.tsx` | What `<main>` holds on the `#/tools` route instead of the sections: the tool list and one `ToolPane` for the active tool |
 | `src/components/tools/ToolPane.tsx` | One tool's pane: the input textarea, the options row, the `<pre>` output and its fields table, and the copy and share buttons — the same markup for every tool, driven only by the `Tool` contract |
-| `src/game/route.ts`               | `GAME_ROUTE` and `isGameRoute`: the one definition of which hashes name the game page, so the nav entry and `App.tsx`'s router cannot drift apart |
+| `src/game/route.ts`               | `SNAKE_ROUTE` and `isSnakeRoute`: the one definition of which hashes name the game page, so the nav entry and `App.tsx`'s router cannot drift apart |
 | `src/game/engine.ts`              | The rules of Snake as pure functions — `createInitialState` and `tick`, plus the board size and scoring constants — with no DOM, React or timer in them |
-| `src/components/game/GamePage.tsx` | What `<main>` holds on the `#/game` route instead of the sections: the board, the score, the Start/Restart control and the keyboard handling, all drawn from the engine's state |
+| `src/components/game/GamePage.tsx` | What `<main>` holds on the `#/snake` route instead of the sections: the board, the score, the Start/Restart control and the keyboard handling, all drawn from the engine's state |
 
 **The section registry is the single source of truth for navigation.**
 `sections` is a list of `{ id, label }`; the header maps over it for its links
@@ -658,9 +658,9 @@ writes them in a list rather than in the tools' own sources. Whether a browser
 actually issues nothing is still the reader's check: it is the Network-tab item
 in [Manual check](#manual-check-widths-mobile-menu-theme-persistence).
 
-## The `~/game` route
+## The `~/snake` route
 
-`~/game` is a playable board of classic Snake in the same terminal skin:
+`~/snake` is a playable board of classic Snake in the same terminal skin:
 arrow keys or WASD, a live score, a Start/Restart button and a game-over
 state. It is the second route the header links to, and it is built the same
 way as the first.
@@ -671,10 +671,10 @@ Everything [the tools route](#it-is-a-hash-route-not-a-second-page) says about
 the mechanism holds here, with a smaller module behind it. `App.tsx` reads
 `location.hash` into state, subscribes to `hashchange`, and renders `GamePage`
 (`src/components/game/GamePage.tsx`) inside the same `<main id="main">` when
-the hash names the game route; `isGameRoute` in `src/game/route.ts` decides,
-and `GAME_ROUTE` there is the single definition of the `/game` path. It
-matches `#/game` and `#/game/`, on the whole path rather than a prefix, so
-`#/gamepad` is not the game. The rest of the shell is untouched across the
+the hash names the game route; `isSnakeRoute` in `src/game/route.ts` decides,
+and `SNAKE_ROUTE` there is the single definition of the `/snake` path. It
+matches `#/snake` and `#/snake/`, on the whole path rather than a prefix, so
+`#/snakes` is not the game. The rest of the shell is untouched across the
 routes: the same skip link, `Header`, `Cursor` and `Footer`, and the same
 single `banner`/`navigation`/`main`/`contentinfo`. Leaving the route for a
 section hash puts the sections back and scrolls to the one named, and
@@ -686,10 +686,10 @@ restore, so there is nothing to encode and the module is one predicate.
 
 **The route is registered, not hand-written into the nav.**
 `src/data/routes.ts` lists it next to the tools route —
-`{ id: 'game', label: '~/game', href: '#/game' }` — and `Header.tsx` maps the
+`{ id: 'snake', label: '~/snake', href: '#/snake' }` — and `Header.tsx` maps the
 sections and then the routes into one shared list of links, inline and in the
 mobile panel. So the nav cannot drift from the registry, and adding
-the `~/game` route added no second navigation landmark.
+the `~/snake` route added no second navigation landmark.
 
 ### The rules live in the engine, not the component
 

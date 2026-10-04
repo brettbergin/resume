@@ -77,7 +77,7 @@ describe('GamePage', () => {
     const headings = screen.getAllByRole('heading', { level: 1 })
 
     expect(headings).toHaveLength(1)
-    expect(headings[0].textContent).toBe('~/game')
+    expect(headings[0].textContent).toBe('~/snake')
   })
 
   it('draws a cell for every square of the engine board', () => {
