@@ -21,6 +21,9 @@ export interface ToolField {
   label: string
   value: string
   warn?: boolean
+  /** When true, the field row renders a copy-to-clipboard button next to its
+   * value. */
+  copy?: boolean
 }
 
 /** Which tool magic paste dispatched a run to, and how confident its `detect`

@@ -185,6 +185,49 @@ describe('ToolsPage', () => {
     expect(decodeURIComponent(window.location.hash)).not.toContain('hunter2')
   })
 
+  it('keeps a pasted code_verifier out of the fragment it writes', async () => {
+    const replace = vi.spyOn(window.history, 'replaceState')
+    // RFC 7636 appendix B's pair, typed the way a reader checking a real
+    // exchange would: the challenge is public (it rides the authorization
+    // request in the clear) but the verifier is the half only the client
+    // holds, so it must not reach the address bar.
+    const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
+    const challenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+    setHash('#/tools/pkce')
+    render(<ToolsPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
+    fireEvent.change(screen.getByLabelText('code_verifier'), {
+      target: { value: verifier },
+    })
+    fireEvent.change(screen.getByLabelText('code_challenge'), {
+      target: { value: challenge },
+    })
+
+    // The options are base64url(JSON) in the fragment, so a raw substring
+    // check would miss the leak entirely: every written hash is decoded with
+    // the page's own parser and the restored option map inspected.
+    await waitFor(() => {
+      expect(parseToolHash(window.location.hash).options.challenge).toBe(challenge)
+    })
+    for (const call of replace.mock.calls) {
+      const written = String(call[2])
+      const restored = parseToolHash(written.slice(written.indexOf('#')))
+      expect(restored.options.verifier).toBeUndefined()
+    }
+    expect(parseToolHash(window.location.hash).options.verifier).toBeUndefined()
+  })
+
+  it('renders a pasted code_verifier as a masked field', () => {
+    setHash('#/tools/pkce')
+    render(<ToolsPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
+
+    expect(screen.getByLabelText('code_verifier').getAttribute('type')).toBe('password')
+    expect(screen.getByLabelText('code_challenge').getAttribute('type')).toBe('text')
+  })
+
   it('does not re-enter its own hash write as a navigation', async () => {
     vi.useFakeTimers()
     setHash('#/tools/base64')
